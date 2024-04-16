@@ -22,22 +22,27 @@ module.exports = {
         type: Sequelize.STRING
       },
       role: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        defaultValue : "USER"
       },
       status: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        defaultValue : "OK"
       },
       profileImage: {
         type: Sequelize.STRING
       },
       chatOption: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        defaultValue : "ALL"
       },
       blockDate: {
-        type: Sequelize.DATE
+        type: Sequelize.DATE,
+        defaultValue : null
       },
       mbti : {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        defaultValue : null
       },
       createdAt: {
         allowNull: false,

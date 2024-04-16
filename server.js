@@ -54,8 +54,8 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 passport.use(
-  new localStrategy(async (username, password, cb) => {
-    let result = await models.User.findOne({ where: { username } });
+  new localStrategy({usernameField : 'email', passwordField : 'password'},async (email, password, cb) => {
+    let result = await models.User.findOne({ where: { email } });
     if (!result) return cb(null, false, { message: "NoExist" });
     if (await bcrypt.compare(password, result.password)) return cb(null, result);
     return cb(null, false, { message: "PwdFail" });
@@ -65,12 +65,12 @@ passport.use(
 passport.serializeUser((user, done) => {
   process.nextTick(() => {
     console.log("serial");
-    done(null, user.id);
+    done(null, user.userId);
   });
 });
 
-passport.deserializeUser(async (id, done) => {
-  const user = await models.User.findByPk(id);
+passport.deserializeUser(async (userId, done) => {
+  const user = await models.User.findByPk(userId);
   process.nextTick(() => {
     console.log("deserial");
     return done(null, user);
@@ -79,7 +79,7 @@ passport.deserializeUser(async (id, done) => {
 
 server.listen(port, () => {
   console.log(`http://localhost:${port}`);
-  console.log(`http://192.168.1.185:${port}`);
+  console.log(`http://192.168.5.17:${port}`);
 });
 
 app.get("/", (req, res) => {
@@ -95,7 +95,7 @@ app.post("/api/login", async (req, res, next) => {
       console.log("로그인 완료");
       let userInfo = {
         userId: req.user.id,
-        username: req.user.username,
+        email: req.user.email,
         nickname: req.user.nickname,
       };
       return res.send({ message: "success", userInfo });
@@ -104,16 +104,17 @@ app.post("/api/login", async (req, res, next) => {
 });
 
 app.post("/api/join", async (req, res) => {
-  const { username, nickname, password, role } = req.body;
+  const { email, nickname, password, mbti } = req.body;
 
   let result = await models.User.findOne({ where: { username } });
   if (result) return res.send("duplicated");
 
   let data = {
-    username,
+    email,
     nickname,
     password: await bcrypt.hash(password, 10),
-    role,
+    role : "USER",
+    mbti
   };
   result = await models.User.create(data);
   return res.send("success");
@@ -132,6 +133,7 @@ app.get("/api/user", async (req, res) => {
   return res.send(result);
 });
 
+//채팅 요청
 app.get("/api/chat/request", async (req, res) => {
   const { targetId } = req.query;
   if (!req.user) return res.send({ message: "NoAuth" });
@@ -143,12 +145,14 @@ app.get("/api/chat/request", async (req, res) => {
   return res.send({ message: "success", roomId: result.id });
 });
 
+//채팅 리스트
 app.get("/api/chat", async (req, res) => {
   if (!req.user) return res.status(401);
   const result = await models.ChatJoin.findAll({ where: { userId: req.user.id }, include: { model: models.ChatRoom } });
   return res.send(result);
 });
 
+//채팅방 입장
 app.get("/api/chat/:id", async (req, res) => {
   const { id } = req.params;
   const roomInfo = await models.ChatRoom.findByPk(id);
