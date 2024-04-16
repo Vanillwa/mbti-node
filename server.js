@@ -12,7 +12,7 @@ app.use(
 );
 const path = require("path");
 const models = require("./models");
-const { Sequelize } = require("sequelize");
+const { Sequelize, Op } = require("sequelize");
 
 const session = require("express-session");
 const MySQLStore = require("express-mysql-session")(session);
@@ -54,7 +54,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 passport.use(
-  new localStrategy({usernameField : 'email', passwordField : 'password'},async (email, password, cb) => {
+  new localStrategy({ usernameField: 'email', passwordField: 'password' }, async (email, password, cb) => {
     let result = await models.User.findOne({ where: { email } });
     if (!result) return cb(null, false, { message: "NoExist" });
     if (await bcrypt.compare(password, result.password)) return cb(null, result);
@@ -86,6 +86,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "/public/index.html"));
 });
 
+// 로그인
 app.post("/api/login", async (req, res, next) => {
   passport.authenticate("local", (error, user, info) => {
     if (error) return res.status(500).json(error);
@@ -103,23 +104,25 @@ app.post("/api/login", async (req, res, next) => {
   })(req, res);
 });
 
+// 회원가입
 app.post("/api/join", async (req, res) => {
   const { email, nickname, password, mbti } = req.body;
 
-  let result = await models.User.findOne({ where: { username } });
+  let result = await models.User.findOne({ where: { email } });
   if (result) return res.send("duplicated");
 
   let data = {
     email,
     nickname,
     password: await bcrypt.hash(password, 10),
-    role : "USER",
+    role: "USER",
     mbti
   };
   result = await models.User.create(data);
   return res.send("success");
 });
 
+//로그아웃
 app.get("/api/logout", (req, res) => {
   req.logout(() => {
     console.log("로그아웃 완료");
@@ -138,21 +141,27 @@ app.get("/api/chat/request", async (req, res) => {
   const { targetId } = req.query;
   if (!req.user) return res.send({ message: "NoAuth" });
   const targetUser = await models.User.findByPk(targetId);
-  const result = await models.ChatRoom.create({ title: `${req.user.nickname}님과 ${targetUser.nickname}님의 채팅방` });
-  await models.ChatJoin.create({ userId: req.user.id, roomId: result.id });
-  await models.ChatJoin.create({ userId: targetId, roomId: result.id });
+  let userId1, userId2
+  if (req.user.userId < targetId) {
+    userId1 = req.user.userId
+    userId2 = targetId
+  } else {
+    userId1 = targetId
+    userId2 = req.user.userId
+  }
 
+  const result = await models.ChatRoom.create({ title: `${req.user.nickname}님과 ${targetUser.nickname}님의 채팅방`, userId1, userId2 });
   return res.send({ message: "success", roomId: result.id });
 });
 
 //채팅 리스트
 app.get("/api/chat", async (req, res) => {
   if (!req.user) return res.status(401);
-  const result = await models.ChatJoin.findAll({ where: { userId: req.user.id }, include: { model: models.ChatRoom } });
+  const result = await models.ChatRoom.findAll({ where: { [Op.or]: [{ userId1: req.user.userId }, { userId2: req.user.userId }] } });
   return res.send(result);
 });
 
-//채팅방 입장
+//여기부터 고쳐야함
 app.get("/api/chat/:id", async (req, res) => {
   const { id } = req.params;
   const roomInfo = await models.ChatRoom.findByPk(id);
