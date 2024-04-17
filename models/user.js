@@ -10,54 +10,59 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      this.hasMany(models.Post,{
+      this.hasMany(models.Post, {
         sourceKey: "userId",
         foreignKey: "writerId",
       })
-      this.hasMany(models.Comment,{
+      this.hasMany(models.Comment, {
         sourceKey: "userId",
         foreignKey: "userId",
       })
-      this.hasMany(models.Like,{
+      this.hasMany(models.Like, {
         sourceKey: "userId",
         foreignKey: "userId",
       })
-      this.hasMany(models.ChatRoom,{
+      this.hasMany(models.ChatRoom, {
         sourceKey: "userId",
         foreignKey: "userId1",
       })
-      this.hasMany(models.ChatRoom,{
+      this.hasMany(models.ChatRoom, {
         sourceKey: "userId",
         foreignKey: "userId2",
       })
-      this.hasMany(models.Message,{
+      this.hasMany(models.Message, {
         sourceKey: "userId",
         foreignKey: "userId",
       })
-      this.hasMany(models.Friend,{
+      this.hasMany(models.Friend, {
         sourceKey: "userId",
         foreignKey: "userId",
       })
-      this.hasMany(models.Friend,{
+      this.hasMany(models.Friend, {
         sourceKey: "userId",
         foreignKey: "targetId",
       })
-      this.hasMany(models.PostReport,{
+      this.hasMany(models.PostReport, {
         sourceKey: "userId",
         foreignKey: "userId",
       })
-      this.hasMany(models.CommentReport,{
+      this.hasMany(models.CommentReport, {
         sourceKey: "userId",
         foreignKey: "userId",
       })
-      this.hasMany(models.MessageReport,{
+      this.hasMany(models.MessageReport, {
         sourceKey: "userId",
         foreignKey: "userId",
       })
     }
   }
   User.init({
-    userId: DataTypes.INTEGER,
+    userId: {
+      allowNull: false,
+      autoIncrement: true,
+      primaryKey: true,
+      type: DataTypes.INTEGER
+    },
     email: DataTypes.STRING,
     nickname: DataTypes.STRING,
     password: DataTypes.STRING,

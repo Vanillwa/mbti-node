@@ -10,32 +10,37 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      this.hasMany(models.Comment,{
+      this.hasMany(models.Comment, {
         sourceKey: "postId",
         foreignKey: "postId",
       })
     }
     static associate(models) {
-      this.hasMany(models.Like,{
+      this.hasMany(models.Like, {
         sourceKey: "postId",
         foreignKey: "postId",
       })
     }
     static associate(models) {
-      this.hasMany(models.Image,{
+      this.hasMany(models.Image, {
         sourceKey: "postId",
         foreignKey: "postId",
       })
     }
     static associate(models) {
-      this.hasMany(models.PostReport,{
+      this.hasMany(models.PostReport, {
         sourceKey: "postId",
         foreignKey: "postId",
       })
     }
   }
   Post.init({
-    postId: DataTypes.INTEGER,
+    postId: {
+      allowNull: false,
+      autoIncrement: true,
+      primaryKey: true,
+      type: DataTypes.INTEGER
+    },
     title: DataTypes.STRING,
     content: DataTypes.STRING,
     status: DataTypes.INTEGER,

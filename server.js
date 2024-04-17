@@ -108,6 +108,8 @@ app.post("/api/login", async (req, res, next) => {
 app.post("/api/join", async (req, res) => {
   const { email, nickname, password, mbti } = req.body;
 
+  if (req.session.isEmailVerify != true) return res.send("NotVerified")
+
   let result = await models.User.findOne({ where: { email } });
   if (result) return res.send("duplicated");
 
@@ -119,8 +121,27 @@ app.post("/api/join", async (req, res) => {
     mbti
   };
   result = await models.User.create(data);
+  delete req.session.isEmailVerify
   return res.send("success");
 });
+
+// 회원가입 이메일 중복체크
+app.post("/api/checkDuplicationEmail", async (req, res) => {
+  const { email } = req.body
+  console.log(email)
+  const result = await models.User.findOne({ where: { email } })
+  if (result != null) return res.send('duplicated')
+  return res.send('success')
+})
+
+// 회원가입 닉네임 중복체크
+app.post("/api/checkDuplicationNickname", async (req, res) => {
+  const { email } = req.body
+  console.log(email)
+  const result = await models.User.findOne({ where: { email } })
+  if (result != null) return res.send('duplicated')
+  return res.send('success')
+})
 
 //로그아웃
 app.get("/api/logout", (req, res) => {
@@ -135,6 +156,14 @@ app.get("/api/user", async (req, res) => {
   const result = await models.User.findAll();
   return res.send(result);
 });
+
+app.get("/api/post/list", async (req, res) => {
+  const mbti = req.query.mbti
+  console.log(mbti)
+  const result = await models.Post.findAll({ where: { category: mbti } })
+  console.log(result)
+  return res.send(result)
+})
 
 //채팅 요청
 app.get("/api/chat/request", async (req, res) => {
