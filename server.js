@@ -118,15 +118,15 @@ app.post("/api/checkDuplicationEmail", async (req, res) => {
   return res.send({ message: 'success' })
 })
 
-app.get("/api/emailChanged", (req,res)=>{
+// 회원가입 이메일 값 변경시 세션 삭제
+app.get("/api/emailChanged", (req, res) => {
   delete req.session.isEmailVerified
   delete req.session.isEmailChecked
-  return res.send('ok')
+  return res.send({ message: 'success' })
 })
 
 // 회원가입 이메일 인증번호 발송
 app.post("/api/requestEmailVerification", async (req, res) => {
-  delete req.session.isEmailVerified
   const { email } = req.body
   const randNum = math.randomInt(100000, 999999)
   req.session.verificationCode = randNum
@@ -177,9 +177,10 @@ app.post("/api/checkDuplicationNickname", async (req, res) => {
   return res.send({ message: 'success' })
 })
 
-app.get("/api/nicknameChanged", (req,res)=>{
+// 회원가입 닉네임 값 변경시 세션 삭제
+app.get("/api/nicknameChanged", (req, res) => {
   delete req.session.isNicknameChecked
-  return res.send('ok')
+  return res.send({ message: 'success' })
 })
 
 // 회원가입
