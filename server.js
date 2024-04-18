@@ -105,7 +105,6 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "/public/index.html"));
 });
 
-
 // 회원가입 이메일 중복체크
 app.post("/api/checkDuplicationEmail", async (req, res) => {
   const { email } = req.body
@@ -249,6 +248,30 @@ app.get("/api/post/list", async (req, res) => {
   } else {
     result = await models.Post.findAll({ where: { category: mbti }, include: [{ model: models.User }] })
   }
+  return res.send(result)
+})
+
+// post 작성
+app.post("/api/post", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const { mbti } = req.query
+  let body = {
+    title: req.body.title,
+    content: req.body.content,
+    status: 1,
+    category: mbti,
+    readhit: 0,
+    writerId: req.user.userId
+  }
+  const result = await models.Post.create(body)
+  return res.send({ message: 'success', result })
+})
+
+// post 삭제
+app.post("/api/post/:postId", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const { postId } = req.params
+  const result = await models.Post.destroy({ where: { postId, writerId: req.user.userId } })
   console.log(result)
   return res.send(result)
 })
