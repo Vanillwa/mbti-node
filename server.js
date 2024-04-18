@@ -126,6 +126,7 @@ app.get("/api/emailChanged", (req,res)=>{
 
 // 회원가입 이메일 인증번호 발송
 app.post("/api/requestEmailVerification", async (req, res) => {
+  delete req.session.isEmailVerified
   const { email } = req.body
   const randNum = math.randomInt(100000, 999999)
   req.session.verificationCode = randNum
