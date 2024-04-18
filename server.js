@@ -106,7 +106,7 @@ app.get("/", (req, res) => {
 });
 
 // 회원가입 이메일 중복체크
-app.post("/api/checkDuplicationEmail", async (req, res) => {
+app.post("/api/join/checkDuplicationEmail", async (req, res) => {
   const { email } = req.body
   const result = await models.User.findOne({ where: { email } })
   if (result != null) {
@@ -118,40 +118,41 @@ app.post("/api/checkDuplicationEmail", async (req, res) => {
 })
 
 // 회원가입 이메일 값 변경시 세션 삭제
-app.get("/api/emailChanged", (req, res) => {
+app.get("/api/join/emailChanged", (req, res) => {
   delete req.session.isEmailVerified
   delete req.session.isEmailChecked
   return res.send({ message: 'success' })
 })
 
 // 회원가입 이메일 인증번호 발송
-app.post("/api/requestEmailVerification", async (req, res) => {
+app.post("/api/join/requestEmailVerification", async (req, res) => {
   const { email } = req.body
   const randNum = math.randomInt(100000, 999999)
   req.session.verificationCode = randNum
 
-  const mailOption = {
-    from: "wjdgus3044@naver.com",
-    to: email,
-    subject: "인증번호 발송",
-    html: `<h1>인증번호 : ${randNum}<h1>`
-  }
+  // const mailOption = {
+  //   from: "wjdgus3044@naver.com",
+  //   to: email,
+  //   subject: "인증번호 발송",
+  //   html: `<h1>인증번호 : ${randNum}<h1>`
+  // }
 
-  smtpTransport.sendMail(mailOption, (err, response) => {
-    if (err) {
-      res.send({ message: 'fail' })
-      smtpTransport.close()
-      return
-    } else {
-      res.send({ message: 'success', code: randNum })
-      smtpTransport.close()
-      return
-    }
-  })
+  // smtpTransport.sendMail(mailOption, (err, response) => {
+  //   if (err) {
+  //     res.send({ message: 'fail' })
+  //     smtpTransport.close()
+  //     return
+  //   } else {
+  //     res.send({ message: 'success', code: randNum })
+  //     smtpTransport.close()
+  //     return
+  //   }
+  // })
+  res.send({ message: 'success', code: randNum })
 })
 
 // 회원가입 이메일 인증번호 맞는지 체크
-app.post("/api/checkEmailVerification", async (req, res) => {
+app.post("/api/join/checkEmailVerification", async (req, res) => {
   const { verifyNumber } = req.body
   const verificationCode = req.session.verificationCode
   if (verifyNumber == verificationCode) {
@@ -164,7 +165,7 @@ app.post("/api/checkEmailVerification", async (req, res) => {
 })
 
 // 회원가입 닉네임 중복체크
-app.post("/api/checkDuplicationNickname", async (req, res) => {
+app.post("/api/join/checkDuplicationNickname", async (req, res) => {
   const { email } = req.body
   console.log(email)
   const result = await models.User.findOne({ where: { email } })
@@ -177,7 +178,7 @@ app.post("/api/checkDuplicationNickname", async (req, res) => {
 })
 
 // 회원가입 닉네임 값 변경시 세션 삭제
-app.get("/api/nicknameChanged", (req, res) => {
+app.get("/api/join/nicknameChanged", (req, res) => {
   delete req.session.isNicknameChecked
   return res.send({ message: 'success' })
 })
@@ -234,12 +235,40 @@ app.get("/api/logout", (req, res) => {
   });
 });
 
-app.get("/api/user", async (req, res) => {
-  const result = await models.User.findAll();
-  return res.send(result);
-});
+// 비밀번호 찾기 인증번호 요청
+app.post("/api/findPassword/requestEmailVerification", async (req, res) => {
+  const { email } = req.body
 
-// post list 출력
+  // const result = await models.User.findOne({where : {email}})
+  // if(result == null){
+  //   return res.send({message : 'noExist'})
+  // }
+
+  const randNum = math.randomInt(100000, 999999)
+  req.session.findPwdverificationCode = randNum
+  // const mailOption = {
+  //   from: "wjdgus3044@naver.com",
+  //   to: email,
+  //   subject: "인증번호 발송",
+  //   html: `<h1>인증번호 : ${randNum}<h1>`
+  // }
+
+  // smtpTransport.sendMail(mailOption, (err, response) => {
+  //   if (err) {
+  //     res.send({ message: 'fail' })
+  //     smtpTransport.close()
+  //     return
+  //   } else {
+  //     res.send({ message: 'success'})
+  //     smtpTransport.close()
+  //     return
+  //   }
+  // })
+
+  return res.send({ message: 'success' })
+})
+
+// post list 조회
 app.get("/api/post/list", async (req, res) => {
   const mbti = req.query.mbti
   let result
@@ -248,6 +277,14 @@ app.get("/api/post/list", async (req, res) => {
   } else {
     result = await models.Post.findAll({ where: { category: mbti }, include: [{ model: models.User }] })
   }
+  return res.send(result)
+})
+
+
+// post view 단일 글 조회
+app.get("/api/post/:postId", async (req, res) => {
+  const { postId } = req.params
+  const result = await models.Post.findByPk(postId)
   return res.send(result)
 })
 
