@@ -152,7 +152,7 @@ app.post("/api/join/requestEmailVerification", async (req, res) => {
 })
 
 // 회원가입 이메일 인증번호 맞는지 체크
-app.post("/api/join/checkEmailVerification", async (req, res) => {
+app.post("/api/join/checkEmailVerification", (req, res) => {
   const { verifyNumber } = req.body
   const verificationCode = req.session.verificationCode
   if (verifyNumber == verificationCode) {
@@ -245,7 +245,8 @@ app.post("/api/findPassword/requestEmailVerification", async (req, res) => {
   // }
 
   const randNum = math.randomInt(100000, 999999)
-  req.session.findPwdverificationCode = randNum
+  req.session.findPwdCode = randNum
+
   // const mailOption = {
   //   from: "wjdgus3044@naver.com",
   //   to: email,
@@ -265,7 +266,30 @@ app.post("/api/findPassword/requestEmailVerification", async (req, res) => {
   //   }
   // })
 
-  return res.send({ message: 'success' })
+  return res.send({ message: 'success', code : randNum })
+})
+
+// 비밀번호 찾기 - 인증번호 비교
+app.post("/api/findPassword/checkEmailVerification", (req, res) => {
+  const { verifyNumber } = req.body
+  const findPwdCode = req.session.findPwdCode
+  console.log(req.session.findPwdCode)
+  if (verifyNumber == findPwdCode) {
+    req.session.isEmailVerifiedinFindPwd = true
+    return res.send({ message: 'success' })
+  } else {
+    delete req.session.isEmailVerifiedinFindPwd
+    return res.send({ message: 'fail' })
+  }
+})
+
+app.get("/api/user/:userId", async (req, res) => {
+  const { userId } = req.params
+  console.log(userId)
+  const userInfo = await models.User.findByPk(userId)
+  const recentPost = await models.Post.findAll({where : {writerId : userId}})
+
+  return res.send({userInfo , recentPost})
 })
 
 // post list 조회
@@ -284,6 +308,7 @@ app.get("/api/post/list", async (req, res) => {
 // post view 단일 글 조회
 app.get("/api/post/:postId", async (req, res) => {
   const { postId } = req.params
+  console.log("postid : ", postId)
   const result = await models.Post.findByPk(postId)
   return res.send(result)
 })
