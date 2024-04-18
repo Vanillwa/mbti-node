@@ -14,23 +14,21 @@ module.exports = (sequelize, DataTypes) => {
         sourceKey: "postId",
         foreignKey: "postId",
       })
-    }
-    static associate(models) {
       this.hasMany(models.Like, {
         sourceKey: "postId",
         foreignKey: "postId",
       })
-    }
-    static associate(models) {
       this.hasMany(models.Image, {
         sourceKey: "postId",
         foreignKey: "postId",
       })
-    }
-    static associate(models) {
       this.hasMany(models.PostReport, {
         sourceKey: "postId",
         foreignKey: "postId",
+      })
+      this.belongsTo(models.User,{
+        foreignKey : 'writerId',
+        targetKey : 'userId'
       })
     }
   }

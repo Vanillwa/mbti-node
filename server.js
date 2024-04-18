@@ -19,6 +19,25 @@ const MySQLStore = require("express-mysql-session")(session);
 const passport = require("passport");
 const localStrategy = require("passport-local");
 const bcrypt = require("bcrypt");
+const math = require('mathjs')
+
+const mailer = require('nodemailer')
+const smtpTransport = mailer.createTransport({
+  pool: true,
+  maxConnections: 1,
+  service: "naver",
+  host: "smpt.naver.com",
+  port: 587,
+  secure: false,
+  requireTLS: true,
+  auth: {
+    user: process.env.MAILER_USER,
+    pass: process.env.MAILER_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false
+  }
+})
 
 const http = require("http");
 const server = http.createServer(app);
@@ -86,6 +105,107 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "/public/index.html"));
 });
 
+
+// 회원가입 이메일 중복체크
+app.post("/api/checkDuplicationEmail", async (req, res) => {
+  const { email } = req.body
+  const result = await models.User.findOne({ where: { email } })
+  if (result != null) {
+    delete req.session.isEmailChecked
+    return res.send({ message: 'duplicated' })
+  }
+  req.session.isEmailChecked = true
+  return res.send({ message: 'success' })
+})
+
+app.get("/api/emailChanged", (req,res)=>{
+  delete req.session.isEmailVerified
+  delete req.session.isEmailChecked
+  return res.send('ok')
+})
+
+// 회원가입 이메일 인증번호 발송
+app.post("/api/requestEmailVerification", async (req, res) => {
+  const { email } = req.body
+  const randNum = math.randomInt(100000, 999999)
+  req.session.verificationCode = randNum
+
+  const mailOption = {
+    from: "wjdgus3044@naver.com",
+    to: email,
+    subject: "인증번호 발송",
+    html: `<h1>인증번호 : ${randNum}<h1>`
+  }
+
+  smtpTransport.sendMail(mailOption, (err, response) => {
+    if (err) {
+      res.send({ message: 'fail' })
+      smtpTransport.close()
+      return
+    } else {
+      res.send({ message: 'success', code: randNum })
+      smtpTransport.close()
+      return
+    }
+  })
+})
+
+// 회원가입 이메일 인증번호 맞는지 체크
+app.post("/api/checkEmailVerification", async (req, res) => {
+  const { verifyNumber } = req.body
+  const verificationCode = req.session.verificationCode
+  if (verifyNumber == verificationCode) {
+    req.session.isEmailVerified = true
+    return res.send({ message: 'success' })
+  } else {
+    delete req.session.isEmailVerified
+    return res.send({ message: 'fail' })
+  }
+})
+
+// 회원가입 닉네임 중복체크
+app.post("/api/checkDuplicationNickname", async (req, res) => {
+  const { email } = req.body
+  console.log(email)
+  const result = await models.User.findOne({ where: { email } })
+  if (result != null) {
+    delete req.session.isNicknameChecked
+    return res.send({ message: 'duplicated' })
+  }
+  req.session.isNicknameChecked = true
+  return res.send({ message: 'success' })
+})
+
+app.get("/api/nicknameChanged", (req,res)=>{
+  delete req.session.isNicknameChecked
+  return res.send('ok')
+})
+
+// 회원가입
+app.post("/api/join", async (req, res) => {
+  const { email, nickname, password, mbti } = req.body;
+
+  if (req.session.isEmailChecked != true) return res.send("emailNotChecked")
+  if (req.session.isEmailVerified != true) return res.send("emailNotVerified")
+  if (req.session.isNicknameChecked != true) return res.send("nicknameNotChecked")
+
+  // let result = await models.User.findOne({ where: { email } });
+  // if (result) return res.send("duplicated");
+
+  let data = {
+    email,
+    nickname,
+    password: await bcrypt.hash(password, 10),
+    role: "USER",
+    mbti
+  };
+  result = await models.User.create(data);
+  delete req.session.isEmailVerified
+  delete req.session.isEmailChecked
+  delete req.session.isNicknameChecked
+  return res.send("success");
+});
+
 // 로그인
 app.post("/api/login", async (req, res, next) => {
   passport.authenticate("local", (error, user, info) => {
@@ -104,51 +224,12 @@ app.post("/api/login", async (req, res, next) => {
   })(req, res);
 });
 
-// 회원가입
-app.post("/api/join", async (req, res) => {
-  const { email, nickname, password, mbti } = req.body;
-
-  if (req.session.isEmailVerify != true) return res.send("NotVerified")
-
-  let result = await models.User.findOne({ where: { email } });
-  if (result) return res.send("duplicated");
-
-  let data = {
-    email,
-    nickname,
-    password: await bcrypt.hash(password, 10),
-    role: "USER",
-    mbti
-  };
-  result = await models.User.create(data);
-  delete req.session.isEmailVerify
-  return res.send("success");
-});
-
-// 회원가입 이메일 중복체크
-app.post("/api/checkDuplicationEmail", async (req, res) => {
-  const { email } = req.body
-  console.log(email)
-  const result = await models.User.findOne({ where: { email } })
-  if (result != null) return res.send('duplicated')
-  return res.send('success')
-})
-
-// 회원가입 닉네임 중복체크
-app.post("/api/checkDuplicationNickname", async (req, res) => {
-  const { email } = req.body
-  console.log(email)
-  const result = await models.User.findOne({ where: { email } })
-  if (result != null) return res.send('duplicated')
-  return res.send('success')
-})
-
 //로그아웃
 app.get("/api/logout", (req, res) => {
   req.logout(() => {
     console.log("로그아웃 완료");
     req.session.destroy();
-    return res.send("success");
+    return res.send({ message: "success" });
   });
 });
 
@@ -157,10 +238,15 @@ app.get("/api/user", async (req, res) => {
   return res.send(result);
 });
 
+// post list 출력
 app.get("/api/post/list", async (req, res) => {
   const mbti = req.query.mbti
-  console.log(mbti)
-  const result = await models.Post.findAll({ where: { category: mbti } })
+  let result
+  if (mbti == 'null') {
+    result = await models.Post.findAll({ include: [{ model: models.User }] })
+  } else {
+    result = await models.Post.findAll({ where: { category: mbti }, include: [{ model: models.User }] })
+  }
   console.log(result)
   return res.send(result)
 })
