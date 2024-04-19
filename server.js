@@ -39,15 +39,15 @@ const smtpTransport = mailer.createTransport({
   }
 })
 
-const http = require("http");
-const server = http.createServer(app);
-const { Server } = require("socket.io");
-const io = new Server(server, {
-  cors: {
-    origin: true,
-    credentials: true,
-  },
-});
+// const http = require("http");
+// const server = http.createServer(app);
+// const { Server } = require("socket.io");
+// const io = new Server(server, {
+//   cors: {
+//     origin: true,
+//     credentials: true,
+//   },
+// });
 
 const dbConfig = {
   host: "localhost",
@@ -61,7 +61,7 @@ const sessionConfig = session({
   secret: "1111",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 1000 * 60 * 60 },
+  cookie: { maxAge: 1000 * 60 * 60, secure: false, httpOnly: false, sameSite : 'none', domain : true},
   store: new MySQLStore(dbConfig),
 });
 
@@ -96,7 +96,7 @@ passport.deserializeUser(async (userId, done) => {
   });
 });
 
-server.listen(port, () => {
+app.listen(port, () => {
   console.log(`http://localhost:${port}`);
   console.log(`http://192.168.5.17:${port}`);
 });
@@ -126,10 +126,13 @@ app.get("/api/join/emailChanged", (req, res) => {
 
 // 회원가입 이메일 인증번호 발송
 app.post("/api/join/requestEmailVerification", async (req, res) => {
+  //if (!req.session.isEmailChecked) return res.send({ message: 'emailNotChecked' })
+  console.log(req.session)
   const { email } = req.body
   const randNum = math.randomInt(100000, 999999)
-  req.session.verificationCode = randNum
-
+  console.log("생선된 인증코드 : ", randNum)
+  req.session.joinCode = randNum
+  console.log("세션 저장된 코드 : ", req.session.joinCode)
   // const mailOption = {
   //   from: "wjdgus3044@naver.com",
   //   to: email,
@@ -148,14 +151,22 @@ app.post("/api/join/requestEmailVerification", async (req, res) => {
   //     return
   //   }
   // })
-  res.send({ message: 'success', code: randNum })
+
+  req.session.save(() => {
+    return res.send({ message: 'success', code: randNum })
+  })
 })
 
 // 회원가입 이메일 인증번호 맞는지 체크
 app.post("/api/join/checkEmailVerification", (req, res) => {
-  const { verifyNumber } = req.body
-  const verificationCode = req.session.verificationCode
-  if (verifyNumber == verificationCode) {
+  //if (!req.session.isEmailChecked) return res.send({ message: 'emailNotChecked' })
+  console.log(req.session)
+  const { code } = req.body
+  const joinCode = req.session.joinCode
+  console.log("사용자 입력 코드 : ", code)
+  console.log("세션 저장된 코드 : ", joinCode)
+
+  if (code == joinCode) {
     req.session.isEmailVerified = true
     return res.send({ message: 'success' })
   } else {
@@ -166,9 +177,8 @@ app.post("/api/join/checkEmailVerification", (req, res) => {
 
 // 회원가입 닉네임 중복체크
 app.post("/api/join/checkDuplicationNickname", async (req, res) => {
-  const { email } = req.body
-  console.log(email)
-  const result = await models.User.findOne({ where: { email } })
+  const { nickname } = req.body
+  const result = await models.User.findOne({ where: { nickname } })
   if (result != null) {
     delete req.session.isNicknameChecked
     return res.send({ message: 'duplicated' })
@@ -187,12 +197,12 @@ app.get("/api/join/nicknameChanged", (req, res) => {
 app.post("/api/join", async (req, res) => {
   const { email, nickname, password, mbti } = req.body;
 
-  if (req.session.isEmailChecked != true) return res.send("emailNotChecked")
-  if (req.session.isEmailVerified != true) return res.send("emailNotVerified")
-  if (req.session.isNicknameChecked != true) return res.send("nicknameNotChecked")
+  // if (req.session.isEmailChecked != true) return res.send("emailNotChecked")
+  // if (req.session.isEmailVerified != true) return res.send("emailNotVerified")
+  // if (req.session.isNicknameChecked != true) return res.send("nicknameNotChecked")
 
-  // let result = await models.User.findOne({ where: { email } });
-  // if (result) return res.send("duplicated");
+  let result = await models.User.findOne({ where: { email } });
+  if (result) return res.send("duplicated");
 
   let data = {
     email,
@@ -239,41 +249,39 @@ app.get("/api/logout", (req, res) => {
 app.post("/api/findPassword/requestEmailVerification", async (req, res) => {
   const { email } = req.body
 
-  // const result = await models.User.findOne({where : {email}})
-  // if(result == null){
-  //   return res.send({message : 'noExist'})
-  // }
+  const result = await models.User.findOne({ where: { email } })
+  if (result == null) {
+    return res.send({ message: 'noExist' })
+  }
 
   const randNum = math.randomInt(100000, 999999)
   req.session.findPwdCode = randNum
+  const mailOption = {
+    from: "wjdgus3044@naver.com",
+    to: email,
+    subject: "인증번호 발송",
+    html: `<h1>인증번호 : ${randNum}<h1>`
+  }
 
-  // const mailOption = {
-  //   from: "wjdgus3044@naver.com",
-  //   to: email,
-  //   subject: "인증번호 발송",
-  //   html: `<h1>인증번호 : ${randNum}<h1>`
-  // }
-
-  // smtpTransport.sendMail(mailOption, (err, response) => {
-  //   if (err) {
-  //     res.send({ message: 'fail' })
-  //     smtpTransport.close()
-  //     return
-  //   } else {
-  //     res.send({ message: 'success'})
-  //     smtpTransport.close()
-  //     return
-  //   }
-  // })
-
-  return res.send({ message: 'success', code : randNum })
+  smtpTransport.sendMail(mailOption, (err, response) => {
+    if (err) {
+      res.send({ message: 'fail' })
+      smtpTransport.close()
+      return
+    } else {
+      res.send({ message: 'success' })
+      smtpTransport.close()
+      return
+    }
+  })
+  return res.send({ message: 'success', code: randNum })
 })
 
 // 비밀번호 찾기 - 인증번호 비교
 app.post("/api/findPassword/checkEmailVerification", (req, res) => {
   const { verifyNumber } = req.body
   const findPwdCode = req.session.findPwdCode
-  console.log(req.session.findPwdCode)
+
   if (verifyNumber == findPwdCode) {
     req.session.isEmailVerifiedinFindPwd = true
     return res.send({ message: 'success' })
@@ -287,9 +295,9 @@ app.get("/api/user/:userId", async (req, res) => {
   const { userId } = req.params
   console.log(userId)
   const userInfo = await models.User.findByPk(userId)
-  const recentPost = await models.Post.findAll({where : {writerId : userId}})
+  const recentPost = await models.Post.findAll({ where: { writerId: userId } })
 
-  return res.send({userInfo , recentPost})
+  return res.send({ userInfo, recentPost })
 })
 
 // post list 조회
@@ -372,45 +380,45 @@ app.get("/api/chat/:id", async (req, res) => {
   return res.send({ roomInfo, messageList });
 });
 
-function onlyForHandshake(middleware) {
-  return (req, res, next) => {
-    const isHandshake = req._query.sid === undefined;
-    if (isHandshake) {
-      middleware(req, res, next);
-    } else {
-      next();
-    }
-  };
-}
+// function onlyForHandshake(middleware) {
+//   return (req, res, next) => {
+//     const isHandshake = req._query.sid === undefined;
+//     if (isHandshake) {
+//       middleware(req, res, next);
+//     } else {
+//       next();
+//     }
+//   };
+// }
 
-io.engine.use(onlyForHandshake(sessionConfig));
-io.engine.use(onlyForHandshake(passport.session()));
-io.engine.use(
-  onlyForHandshake((req, res, next) => {
-    if (req.user) {
-      next();
-    } else {
-      res.writeHead(401);
-      res.end();
-    }
-  })
-);
+// io.engine.use(onlyForHandshake(sessionConfig));
+// io.engine.use(onlyForHandshake(passport.session()));
+// io.engine.use(
+//   onlyForHandshake((req, res, next) => {
+//     if (req.user) {
+//       next();
+//     } else {
+//       res.writeHead(401);
+//       res.end();
+//     }
+//   })
+// );
 
-io.on("connection", (socket) => {
-  console.log("socket connected");
+// io.on("connection", (socket) => {
+//   console.log("socket connected");
 
-  socket.on("ask-join", async (data) => {
-    console.log("socket room 확인");
-    socket.join(data);
-  });
+//   socket.on("ask-join", async (data) => {
+//     console.log("socket room 확인");
+//     socket.join(data);
+//   });
 
-  socket.on("send-message", async (data) => {
-    let user = socket.request.user;
-    const result = await models.Message.create({ content: data.content, userId: user.id, roomId: data.roomId });
-    let newResult = { ...result.dataValues, User: { nickname: user.nickname } };
-    io.to(data.roomId).emit("send-message", newResult);
-  });
-});
+//   socket.on("send-message", async (data) => {
+//     let user = socket.request.user;
+//     const result = await models.Message.create({ content: data.content, userId: user.id, roomId: data.roomId });
+//     let newResult = { ...result.dataValues, User: { nickname: user.nickname } };
+//     io.to(data.roomId).emit("send-message", newResult);
+//   });
+// });
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "/public/index.html"));
