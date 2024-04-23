@@ -2,6 +2,12 @@ require("dotenv").config();
 const port = process.env.PORT;
 
 const express = require("express");
+const https = require('https')
+const fs = require("fs")
+const options = {
+  key: fs.readFileSync("./cert/cert.key"),
+  cert: fs.readFileSync("./cert/cert.crt"),
+};
 const app = express();
 const cors = require("cors");
 app.use(
@@ -21,7 +27,8 @@ const localStrategy = require("passport-local");
 const bcrypt = require("bcrypt");
 const math = require('mathjs')
 
-const mailer = require('nodemailer')
+const mailer = require('nodemailer');
+const { emit } = require("process");
 const smtpTransport = mailer.createTransport({
   pool: true,
   maxConnections: 1,
@@ -61,7 +68,7 @@ const sessionConfig = session({
   secret: "1111",
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 1000 * 60 * 60, secure: false, httpOnly: false, sameSite : 'none', domain : true},
+  cookie: { maxAge: 1000 * 60 * 60, secure: true, httpOnly: false, sameSite: 'none' },
   store: new MySQLStore(dbConfig),
 });
 
@@ -96,9 +103,12 @@ passport.deserializeUser(async (userId, done) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`http://localhost:${port}`);
-  console.log(`http://192.168.5.17:${port}`);
+app.listen(11111, () => {
+  console.log(`http://192.168.5.17:11111`);
+});
+
+https.createServer(options, app).listen(port, () => {
+  console.log(`https://192.168.5.17:${port}`);
 });
 
 app.get("/", (req, res) => {
@@ -119,38 +129,36 @@ app.post("/api/join/checkDuplicationEmail", async (req, res) => {
 
 // 회원가입 이메일 값 변경시 세션 삭제
 app.get("/api/join/emailChanged", (req, res) => {
-  delete req.session.isEmailVerified
   delete req.session.isEmailChecked
+  delete req.session.isEmailVerified
   return res.send({ message: 'success' })
 })
 
 // 회원가입 이메일 인증번호 발송
 app.post("/api/join/requestEmailVerification", async (req, res) => {
-  //if (!req.session.isEmailChecked) return res.send({ message: 'emailNotChecked' })
-  console.log(req.session)
+  if (!req.session.isEmailChecked) return res.send({ message: 'emailNotChecked' })
   const { email } = req.body
   const randNum = math.randomInt(100000, 999999)
-  console.log("생선된 인증코드 : ", randNum)
   req.session.joinCode = randNum
-  console.log("세션 저장된 코드 : ", req.session.joinCode)
-  // const mailOption = {
-  //   from: "wjdgus3044@naver.com",
-  //   to: email,
-  //   subject: "인증번호 발송",
-  //   html: `<h1>인증번호 : ${randNum}<h1>`
-  // }
 
-  // smtpTransport.sendMail(mailOption, (err, response) => {
-  //   if (err) {
-  //     res.send({ message: 'fail' })
-  //     smtpTransport.close()
-  //     return
-  //   } else {
-  //     res.send({ message: 'success', code: randNum })
-  //     smtpTransport.close()
-  //     return
-  //   }
-  // })
+  const mailOption = {
+    from: "wjdgus3044@naver.com",
+    to: email,
+    subject: "인증번호 발송",
+    html: `<h1>인증번호 : ${randNum}<h1>`
+  }
+
+  smtpTransport.sendMail(mailOption, (err, response) => {
+    if (err) {
+      res.send({ message: 'fail' })
+      smtpTransport.close()
+      return
+    } else {
+      res.send({ message: 'success', code: randNum })
+      smtpTransport.close()
+      return
+    }
+  })
 
   req.session.save(() => {
     return res.send({ message: 'success', code: randNum })
@@ -159,12 +167,9 @@ app.post("/api/join/requestEmailVerification", async (req, res) => {
 
 // 회원가입 이메일 인증번호 맞는지 체크
 app.post("/api/join/checkEmailVerification", (req, res) => {
-  //if (!req.session.isEmailChecked) return res.send({ message: 'emailNotChecked' })
-  console.log(req.session)
+  if (!req.session.isEmailChecked) return res.send({ message: 'emailNotChecked' })
   const { code } = req.body
   const joinCode = req.session.joinCode
-  console.log("사용자 입력 코드 : ", code)
-  console.log("세션 저장된 코드 : ", joinCode)
 
   if (code == joinCode) {
     req.session.isEmailVerified = true
@@ -197,9 +202,9 @@ app.get("/api/join/nicknameChanged", (req, res) => {
 app.post("/api/join", async (req, res) => {
   const { email, nickname, password, mbti } = req.body;
 
-  // if (req.session.isEmailChecked != true) return res.send("emailNotChecked")
-  // if (req.session.isEmailVerified != true) return res.send("emailNotVerified")
-  // if (req.session.isNicknameChecked != true) return res.send("nicknameNotChecked")
+  if (req.session.isEmailChecked != true) return res.send("emailNotChecked")
+  if (req.session.isEmailVerified != true) return res.send("emailNotVerified")
+  if (req.session.isNicknameChecked != true) return res.send("nicknameNotChecked")
 
   let result = await models.User.findOne({ where: { email } });
   if (result) return res.send("duplicated");
@@ -209,13 +214,15 @@ app.post("/api/join", async (req, res) => {
     nickname,
     password: await bcrypt.hash(password, 10),
     role: "USER",
-    mbti
+    mbti,
+    status : 'ok',
+    chatOption : 'friendOnly'
   };
   result = await models.User.create(data);
   delete req.session.isEmailVerified
   delete req.session.isEmailChecked
   delete req.session.isNicknameChecked
-  return res.send("success");
+  return res.send({message : "success"});
 });
 
 // 로그인
@@ -230,6 +237,11 @@ app.post("/api/login", async (req, res, next) => {
         userId: req.user.id,
         email: req.user.email,
         nickname: req.user.nickname,
+        profileImage: req.user.profileImage,
+        mbti: req.user.mbti,
+        status: req.user.status,
+        role: req.user.role,
+        chatOption: req.user.chatOption
       };
       return res.send({ message: "success", userInfo });
     });
@@ -245,8 +257,8 @@ app.get("/api/logout", (req, res) => {
   });
 });
 
-// 비밀번호 찾기 인증번호 요청
-app.post("/api/findPassword/requestEmailVerification", async (req, res) => {
+// 비밀번호 재설정 인증번호 요청
+app.post("/api/updatePassword/requestEmailVerification", async (req, res) => {
   const { email } = req.body
 
   const result = await models.User.findOne({ where: { email } })
@@ -274,11 +286,21 @@ app.post("/api/findPassword/requestEmailVerification", async (req, res) => {
       return
     }
   })
+  req.session.isEmailCheckedinFindPwd = true
+  req.session.resetPwdEmail = email
   return res.send({ message: 'success', code: randNum })
 })
 
-// 비밀번호 찾기 - 인증번호 비교
-app.post("/api/findPassword/checkEmailVerification", (req, res) => {
+// 비밀번호 재설정 - 이메일 input값 변경
+app.get('/api/updatePassword/emailChanged', (req, res) => {
+  delete req.session.isEmailCheckedinFindPwd;
+  delete req.session.findPwdCode
+  delete req.session.findPwdEmail
+  return res.send({ message: 'success' })
+})
+
+// 비밀번호 재설정 - 인증번호 비교
+app.post("/api/updatePassword/checkEmailVerification", (req, res) => {
   const { verifyNumber } = req.body
   const findPwdCode = req.session.findPwdCode
 
@@ -291,9 +313,25 @@ app.post("/api/findPassword/checkEmailVerification", (req, res) => {
   }
 })
 
+// 비밀번호 재설정
+app.post("/api/updatePassword", async (req, res) => {
+  const { password } = req.body
+  const email = req.session.resetPwdEmail
+
+  const result = await models.User.update({ password: await bcrypt.hash(password, 10) }, { where: { email } })
+  return res.send({ message: 'success', result })
+})
+
+// 회원정보 수정
+app.post("/api/user", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const result = await models.User.findByPk(req.user.userId)
+  return res.send({ message: 'success', userInfo: result })
+})
+
+// 유저 프로필
 app.get("/api/user/:userId", async (req, res) => {
   const { userId } = req.params
-  console.log(userId)
   const userInfo = await models.User.findByPk(userId)
   const recentPost = await models.Post.findAll({ where: { writerId: userId } })
 
@@ -317,7 +355,7 @@ app.get("/api/post/list", async (req, res) => {
 app.get("/api/post/:postId", async (req, res) => {
   const { postId } = req.params
   console.log("postid : ", postId)
-  const result = await models.Post.findByPk(postId)
+  const result = await models.Post.findOne({ where: { postId }, include: [{ model: models.User }] })
   return res.send(result)
 })
 

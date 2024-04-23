@@ -41,7 +41,7 @@ module.exports = (sequelize, DataTypes) => {
     },
     title: DataTypes.STRING,
     content: DataTypes.STRING,
-    status: DataTypes.INTEGER,
+    status: DataTypes.STRING,
     category: DataTypes.STRING,
     readhit: DataTypes.INTEGER
   }, {
