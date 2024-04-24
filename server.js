@@ -120,23 +120,23 @@ app.post("/api/join/checkDuplicationEmail", async (req, res) => {
   const { email } = req.body
   const result = await models.User.findOne({ where: { email } })
   if (result != null) {
-    delete req.session.isEmailChecked
+    delete req.session.isJoinEmailChecked
     return res.send({ message: 'duplicated' })
   }
-  req.session.isEmailChecked = true
+  req.session.isJoinEmailChecked = true
   return res.send({ message: 'success' })
 })
 
 // 회원가입 이메일 값 변경시 세션 삭제
 app.get("/api/join/emailChanged", (req, res) => {
-  delete req.session.isEmailChecked
-  delete req.session.isEmailVerified
+  delete req.session.isJoinEmailChecked
+  delete req.session.isJoinEmailVerified
   return res.send({ message: 'success' })
 })
 
 // 회원가입 이메일 인증번호 발송
 app.post("/api/join/requestEmailVerification", async (req, res) => {
-  if (!req.session.isEmailChecked) return res.send({ message: 'emailNotChecked' })
+  if (!req.session.isJoinEmailChecked) return res.send({ message: 'emailNotChecked' })
   const { email } = req.body
   const randNum = math.randomInt(100000, 999999)
   req.session.joinCode = randNum
@@ -160,22 +160,20 @@ app.post("/api/join/requestEmailVerification", async (req, res) => {
     }
   })
 
-  req.session.save(() => {
-    return res.send({ message: 'success', code: randNum })
-  })
+  return res.send({ message: 'success', code: randNum })
 })
 
 // 회원가입 이메일 인증번호 맞는지 체크
 app.post("/api/join/checkEmailVerification", (req, res) => {
-  if (!req.session.isEmailChecked) return res.send({ message: 'emailNotChecked' })
+  if (!req.session.isJoinEmailChecked) return res.send({ message: 'emailNotChecked' })
   const { code } = req.body
   const joinCode = req.session.joinCode
 
   if (code == joinCode) {
-    req.session.isEmailVerified = true
+    req.session.isJoinEmailVerified = true
     return res.send({ message: 'success' })
   } else {
-    delete req.session.isEmailVerified
+    delete req.session.isJoinEmailVerified
     return res.send({ message: 'fail' })
   }
 })
@@ -185,16 +183,16 @@ app.post("/api/join/checkDuplicationNickname", async (req, res) => {
   const { nickname } = req.body
   const result = await models.User.findOne({ where: { nickname } })
   if (result != null) {
-    delete req.session.isNicknameChecked
+    delete req.session.isJoinNicknameChecked
     return res.send({ message: 'duplicated' })
   }
-  req.session.isNicknameChecked = true
+  req.session.isJoinNicknameChecked = true
   return res.send({ message: 'success' })
 })
 
 // 회원가입 닉네임 값 변경시 세션 삭제
 app.get("/api/join/nicknameChanged", (req, res) => {
-  delete req.session.isNicknameChecked
+  delete req.session.isJoinNicknameChecked
   return res.send({ message: 'success' })
 })
 
@@ -202,27 +200,27 @@ app.get("/api/join/nicknameChanged", (req, res) => {
 app.post("/api/join", async (req, res) => {
   const { email, nickname, password, mbti } = req.body;
 
-  if (req.session.isEmailChecked != true) return res.send("emailNotChecked")
-  if (req.session.isEmailVerified != true) return res.send("emailNotVerified")
-  if (req.session.isNicknameChecked != true) return res.send("nicknameNotChecked")
+  if (req.session.isJoinEmailChecked != true) return res.send({ message: "emailNotChecked" })
+  if (req.session.isJoinEmailVerified != true) return res.send({ message: "emailNotVerified" })
+  if (req.session.isJoinNicknameChecked != true) return res.send({ message: "nicknameNotChecked" })
 
   let result = await models.User.findOne({ where: { email } });
-  if (result) return res.send("duplicated");
-
+  if (result) return res.send({ message: "duplicated" });
+  
   let data = {
     email,
     nickname,
     password: await bcrypt.hash(password, 10),
     role: "USER",
     mbti,
-    status : 'ok',
-    chatOption : 'friendOnly'
+    status: 'ok',
+    chatOption: 'friendOnly'
   };
   result = await models.User.create(data);
-  delete req.session.isEmailVerified
-  delete req.session.isEmailChecked
-  delete req.session.isNicknameChecked
-  return res.send({message : "success"});
+  delete req.session.isJoinEmailVerified
+  delete req.session.isJoinEmailChecked
+  delete req.session.isJoinNicknameChecked
+  return res.send({ message: "success" });
 });
 
 // 로그인
@@ -267,7 +265,7 @@ app.post("/api/updatePassword/requestEmailVerification", async (req, res) => {
   }
 
   const randNum = math.randomInt(100000, 999999)
-  req.session.findPwdCode = randNum
+  req.session.updatePwdCode = randNum
   const mailOption = {
     from: "wjdgus3044@naver.com",
     to: email,
@@ -286,39 +284,43 @@ app.post("/api/updatePassword/requestEmailVerification", async (req, res) => {
       return
     }
   })
-  req.session.isEmailCheckedinFindPwd = true
-  req.session.resetPwdEmail = email
+  req.session.isupdatePwdEmailChecked = true
+  req.session.updatePwdEmail = email
   return res.send({ message: 'success', code: randNum })
 })
 
 // 비밀번호 재설정 - 이메일 input값 변경
 app.get('/api/updatePassword/emailChanged', (req, res) => {
-  delete req.session.isEmailCheckedinFindPwd;
-  delete req.session.findPwdCode
-  delete req.session.findPwdEmail
+  delete req.session.isupdatePwdEmailChecked;
+  delete req.session.updatePwdCode
+  delete req.session.updatePwdEmail
   return res.send({ message: 'success' })
 })
 
 // 비밀번호 재설정 - 인증번호 비교
 app.post("/api/updatePassword/checkEmailVerification", (req, res) => {
   const { verifyNumber } = req.body
-  const findPwdCode = req.session.findPwdCode
+  const updatePwdCode = req.session.updatePwdCode
 
-  if (verifyNumber == findPwdCode) {
-    req.session.isEmailVerifiedinFindPwd = true
+  if (verifyNumber == updatePwdCode) {
+    req.session.isupdatePwdEmailVerified = true
     return res.send({ message: 'success' })
   } else {
-    delete req.session.isEmailVerifiedinFindPwd
+    delete req.session.isupdatePwdEmailVerified
     return res.send({ message: 'fail' })
   }
 })
 
-// 비밀번호 재설정
+// 비밀번호 재설정 - 비밀번호 변경
 app.post("/api/updatePassword", async (req, res) => {
   const { password } = req.body
-  const email = req.session.resetPwdEmail
+  const email = req.session.updatePwdEmail
 
   const result = await models.User.update({ password: await bcrypt.hash(password, 10) }, { where: { email } })
+
+  delete req.session.updatePwdCode
+  delete req.session.isupdatePwdEmailVerified
+  delete req.session.updatePwdEmail
   return res.send({ message: 'success', result })
 })
 
@@ -366,7 +368,7 @@ app.post("/api/post", async (req, res) => {
   let body = {
     title: req.body.title,
     content: req.body.content,
-    status: 1,
+    status: "ok",
     category: mbti,
     readhit: 0,
     writerId: req.user.userId
