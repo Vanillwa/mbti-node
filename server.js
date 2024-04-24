@@ -2,6 +2,7 @@ require("dotenv").config();
 const port = process.env.PORT;
 
 const express = require("express");
+const multer = require("multer")
 const https = require('https')
 const fs = require("fs")
 const options = {
@@ -72,12 +73,25 @@ const sessionConfig = session({
   store: new MySQLStore(dbConfig),
 });
 
-app.use(express.static(__dirname + "/public"));
+app.use(express.static(path.join(__dirname + "/public")));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionConfig);
 app.use(passport.initialize());
 app.use(passport.session());
+
+const upload = multer({
+  storage : multer.diskStorage({
+    destination(req,file,cb){
+      cb(null, 'public/uploads')
+    },
+    filename(req,file,cb){
+      const ext = path.extname(file.originalname);
+      console.log('file.originalname', file.originalname)
+      cb(null, path.basename(file.originalname, ext) + Date.now() + ext);
+    }
+  })
+})
 
 passport.use(
   new localStrategy({ usernameField: 'email', passwordField: 'password' }, async (email, password, cb) => {
@@ -206,7 +220,7 @@ app.post("/api/join", async (req, res) => {
 
   let result = await models.User.findOne({ where: { email } });
   if (result) return res.send({ message: "duplicated" });
-  
+
   let data = {
     email,
     nickname,
@@ -315,7 +329,7 @@ app.post("/api/updatePassword/checkEmailVerification", (req, res) => {
 app.post("/api/updatePassword", async (req, res) => {
   const { password } = req.body
   const email = req.session.updatePwdEmail
-
+  if(!email) return res.send({message : 'noAuth'})
   const result = await models.User.update({ password: await bcrypt.hash(password, 10) }, { where: { email } })
 
   delete req.session.updatePwdCode
@@ -364,12 +378,11 @@ app.get("/api/post/:postId", async (req, res) => {
 // post 작성
 app.post("/api/post", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  const { mbti } = req.query
   let body = {
     title: req.body.title,
     content: req.body.content,
     status: "ok",
-    category: mbti,
+    category: req.body.category,
     readhit: 0,
     writerId: req.user.userId
   }
@@ -377,13 +390,33 @@ app.post("/api/post", async (req, res) => {
   return res.send({ message: 'success', result })
 })
 
+app.post("/api/post/img", upload.single('img'), async(req,res)=>{
+  // 해당 라우터가 정상적으로 작동하면 public/uploads에 이미지가 업로드된다.
+  // 업로드된 이미지의 URL 경로를 프론트엔드로 반환한다.
+  console.log('전달받은 파일', req.file);
+  console.log('저장된 파일의 이름', req.file.filename);
+
+  // 파일이 저장된 경로를 클라이언트에게 반환해준다.
+  const IMG_URL = `https://192.168.5.17:10000/uploads/${req.file.filename}`;
+  console.log(IMG_URL);
+  res.json({ url: IMG_URL });
+})
+
 // post 삭제
-app.post("/api/post/:postId", async (req, res) => {
+app.delete("/api/post/:postId", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const { postId } = req.params
   const result = await models.Post.destroy({ where: { postId, writerId: req.user.userId } })
-  console.log(result)
-  return res.send(result)
+  return res.send({message : 'success', result})
+})
+
+// post 수정
+app.put("/api/post", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  if (req.body.writerId != req.user.userId) return res.send({ message: 'noAuth' })
+
+  const result = await models.Post.update(req.body, {where : {postId : req.body.postId}})
+  return res.send({message : 'success', result})
 })
 
 //채팅 요청
