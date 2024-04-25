@@ -81,11 +81,11 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 const upload = multer({
-  storage : multer.diskStorage({
-    destination(req,file,cb){
+  storage: multer.diskStorage({
+    destination(req, file, cb) {
       cb(null, 'public/uploads')
     },
-    filename(req,file,cb){
+    filename(req, file, cb) {
       const ext = path.extname(file.originalname);
       console.log('file.originalname', file.originalname)
       cb(null, path.basename(file.originalname, ext) + Date.now() + ext);
@@ -329,7 +329,7 @@ app.post("/api/updatePassword/checkEmailVerification", (req, res) => {
 app.post("/api/updatePassword", async (req, res) => {
   const { password } = req.body
   const email = req.session.updatePwdEmail
-  if(!email) return res.send({message : 'noAuth'})
+  if (!email) return res.send({ message: 'noAuth' })
   const result = await models.User.update({ password: await bcrypt.hash(password, 10) }, { where: { email } })
 
   delete req.session.updatePwdCode
@@ -338,11 +338,33 @@ app.post("/api/updatePassword", async (req, res) => {
   return res.send({ message: 'success', result })
 })
 
-// 회원정보 수정
-app.post("/api/user", async (req, res) => {
+// 회원정보 수정 - 닉네임 중복 체크
+app.post("/api/updateUserInfo/checkDuplicationNickname", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  const result = await models.User.findByPk(req.user.userId)
-  return res.send({ message: 'success', userInfo: result })
+  const { nickname } = req.body
+  const result = await models.User.findOne({where : {nickname}})
+  if(result){
+    delete req.session.isUpdateNicknameChecked
+    return res.send({ message: 'duplicated' })
+  }
+  req.session.isUpdateNicknameChecked = true
+  return res.send({ message: 'success' })
+})
+
+// 회원정보 수정 - 닉네임값 변경시 세션 삭제
+app.get("/api/updateUserInfo/nicknameChanged", (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  delete req.session.isUpdateNicknameChecked
+  return res.send({ message: 'success' })
+})
+
+// 회원정보 수정 - 닉네임 변경
+app.put("/api/updateUserInfo/updateNickname", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  if(!req.session.isUpdateNicknameChecked) return res.send({ message: 'nicknameNotChecked' })
+  const { nickname } = req.body
+  const result = await models.User.update({ nickname }, { where: { userId: req.user.userId } })
+  return res.send({ message: 'success' })
 })
 
 // 유저 프로필
@@ -365,7 +387,6 @@ app.get("/api/post/list", async (req, res) => {
   }
   return res.send(result)
 })
-
 
 // post view 단일 글 조회
 app.get("/api/post/:postId", async (req, res) => {
@@ -390,15 +411,10 @@ app.post("/api/post", async (req, res) => {
   return res.send({ message: 'success', result })
 })
 
-app.post("/api/post/img", upload.single('img'), async(req,res)=>{
-  // 해당 라우터가 정상적으로 작동하면 public/uploads에 이미지가 업로드된다.
-  // 업로드된 이미지의 URL 경로를 프론트엔드로 반환한다.
+app.post("/api/post/img", upload.single('img'), async (req, res) => {
   console.log('전달받은 파일', req.file);
   console.log('저장된 파일의 이름', req.file.filename);
-
-  // 파일이 저장된 경로를 클라이언트에게 반환해준다.
   const IMG_URL = `https://192.168.5.17:10000/uploads/${req.file.filename}`;
-  console.log(IMG_URL);
   res.json({ url: IMG_URL });
 })
 
@@ -407,7 +423,7 @@ app.delete("/api/post/:postId", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const { postId } = req.params
   const result = await models.Post.destroy({ where: { postId, writerId: req.user.userId } })
-  return res.send({message : 'success', result})
+  return res.send({ message: 'success', result })
 })
 
 // post 수정
@@ -415,8 +431,8 @@ app.put("/api/post", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   if (req.body.writerId != req.user.userId) return res.send({ message: 'noAuth' })
 
-  const result = await models.Post.update(req.body, {where : {postId : req.body.postId}})
-  return res.send({message : 'success', result})
+  const result = await models.Post.update(req.body, { where: { postId: req.body.postId } })
+  return res.send({ message: 'success', result })
 })
 
 //채팅 요청
