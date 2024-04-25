@@ -338,12 +338,29 @@ app.post("/api/updatePassword", async (req, res) => {
   return res.send({ message: 'success', result })
 })
 
+// 회원정보 수정 - 프로필 이미지 업로드
+app.put("/api/updateUserInfo/updateProfileImage", upload.single('img'), async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  console.log('전달받은 파일', req.file);
+  console.log('저장된 파일의 이름', req.file.filename);
+  const IMG_URL = `https://192.168.5.17:10000/uploads/${req.file.filename}`;
+  const result = await models.User.update({ profileImage: IMG_URL }, { where: { userId: req.user.userId } })
+  res.json({ url: IMG_URL });
+})
+
+// 회원정보 수정 - 프로필 이미지 삭제
+app.put('/api/updateUserInfo/deleteProfileImage', async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const result = await models.User.update({ profileImage: null }, { where: { userId: req.user.userId } })
+  return res.send({ message: 'success' })
+})
+
 // 회원정보 수정 - 닉네임 중복 체크
 app.post("/api/updateUserInfo/checkDuplicationNickname", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const { nickname } = req.body
   const result = await models.User.findOne({ where: { nickname } })
-  if (result) {
+  if (result != null) {
     delete req.session.isUpdateNicknameChecked
     return res.send({ message: 'duplicated' })
   }
@@ -359,19 +376,21 @@ app.get("/api/updateUserInfo/nicknameChanged", (req, res) => {
 })
 
 // 회원정보 수정 - 닉네임 변경
-app.put("/api/updateUserInfo/updateNickname", async (req, res) => {
+app.put("/api/updateUserInfo/nickname", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   if (!req.session.isUpdateNicknameChecked) return res.send({ message: 'nicknameNotChecked' })
   const { nickname } = req.body
   const result = await models.User.update({ nickname }, { where: { userId: req.user.userId } })
-  return res.send({ message: 'success' })
+  req.user.nickname = nickname
+  return res.send({ message: 'success', newUserInfo: req.user })
 })
 
-// 회원정보 수정 - 비밀번호 
-app.put("/api/updateUserInfo/updatePassword", async (req, res) => {
+// 회원정보 수정 - 비밀번호 변경
+app.put("/api/updateUserInfo/password", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const { password } = req.body
   const result = await models.User.update({ password: await bcrypt.hash(password, 10) }, { where: { userId: req.user.userId } })
+  req.user.password = password
   return res.send({ message: 'success' })
 })
 
@@ -432,8 +451,8 @@ app.delete("/api/post/:postId", async (req, res) => {
   const { postId } = req.params
   if (!req.user) return res.send({ message: 'noAuth' })
   const post = await models.Post.findByPk(postId)
-  if(req.user.role != 'admin' && req.user.userId != post.writerId) return res.send({ message: 'noAuth' })
-  
+  if (req.user.role != 'admin' && req.user.userId != post.writerId) return res.send({ message: 'noAuth' })
+
   const result = await models.Post.destroy({ where: { postId, writerId: req.user.userId } })
   return res.send({ message: 'success', result })
 })
@@ -450,7 +469,7 @@ app.put("/api/post", async (req, res) => {
 //채팅 요청
 app.get("/api/chat/request", async (req, res) => {
   const { targetId } = req.query;
-  if (!req.user) return res.send({ message: "NoAuth" });
+  if (!req.user) return res.send({ message: "noAuth" });
   const targetUser = await models.User.findByPk(targetId);
   let userId1, userId2
   if (req.user.userId < targetId) {
