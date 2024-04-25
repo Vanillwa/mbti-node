@@ -129,7 +129,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "/public/index.html"));
 });
 
-// 회원가입 이메일 중복체크
+// 회원가입 - 이메일 중복체크
 app.post("/api/join/checkDuplicationEmail", async (req, res) => {
   const { email } = req.body
   const result = await models.User.findOne({ where: { email } })
@@ -141,14 +141,14 @@ app.post("/api/join/checkDuplicationEmail", async (req, res) => {
   return res.send({ message: 'success' })
 })
 
-// 회원가입 이메일 값 변경시 세션 삭제
+// 회원가입 - 이메일 값 변경시 세션 삭제
 app.get("/api/join/emailChanged", (req, res) => {
   delete req.session.isJoinEmailChecked
   delete req.session.isJoinEmailVerified
   return res.send({ message: 'success' })
 })
 
-// 회원가입 이메일 인증번호 발송
+// 회원가입 - 이메일 인증번호 발송
 app.post("/api/join/requestEmailVerification", async (req, res) => {
   if (!req.session.isJoinEmailChecked) return res.send({ message: 'emailNotChecked' })
   const { email } = req.body
@@ -177,7 +177,7 @@ app.post("/api/join/requestEmailVerification", async (req, res) => {
   return res.send({ message: 'success', code: randNum })
 })
 
-// 회원가입 이메일 인증번호 맞는지 체크
+// 회원가입 - 이메일 인증번호 맞는지 체크
 app.post("/api/join/checkEmailVerification", (req, res) => {
   if (!req.session.isJoinEmailChecked) return res.send({ message: 'emailNotChecked' })
   const { code } = req.body
@@ -192,7 +192,7 @@ app.post("/api/join/checkEmailVerification", (req, res) => {
   }
 })
 
-// 회원가입 닉네임 중복체크
+// 회원가입 - 닉네임 중복체크
 app.post("/api/join/checkDuplicationNickname", async (req, res) => {
   const { nickname } = req.body
   const result = await models.User.findOne({ where: { nickname } })
@@ -204,7 +204,7 @@ app.post("/api/join/checkDuplicationNickname", async (req, res) => {
   return res.send({ message: 'success' })
 })
 
-// 회원가입 닉네임 값 변경시 세션 삭제
+// 회원가입 - 닉네임 값 변경시 세션 삭제
 app.get("/api/join/nicknameChanged", (req, res) => {
   delete req.session.isJoinNicknameChecked
   return res.send({ message: 'success' })
@@ -246,7 +246,7 @@ app.post("/api/login", async (req, res, next) => {
       if (error) return next(error);
       console.log("로그인 완료");
       let userInfo = {
-        userId: req.user.id,
+        userId: req.user.userId,
         email: req.user.email,
         nickname: req.user.nickname,
         profileImage: req.user.profileImage,
@@ -269,7 +269,7 @@ app.get("/api/logout", (req, res) => {
   });
 });
 
-// 비밀번호 재설정 인증번호 요청
+// 비밀번호 재설정 - 인증번호 요청
 app.post("/api/updatePassword/requestEmailVerification", async (req, res) => {
   const { email } = req.body
 
@@ -342,8 +342,8 @@ app.post("/api/updatePassword", async (req, res) => {
 app.post("/api/updateUserInfo/checkDuplicationNickname", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const { nickname } = req.body
-  const result = await models.User.findOne({where : {nickname}})
-  if(result){
+  const result = await models.User.findOne({ where: { nickname } })
+  if (result) {
     delete req.session.isUpdateNicknameChecked
     return res.send({ message: 'duplicated' })
   }
@@ -361,9 +361,17 @@ app.get("/api/updateUserInfo/nicknameChanged", (req, res) => {
 // 회원정보 수정 - 닉네임 변경
 app.put("/api/updateUserInfo/updateNickname", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  if(!req.session.isUpdateNicknameChecked) return res.send({ message: 'nicknameNotChecked' })
+  if (!req.session.isUpdateNicknameChecked) return res.send({ message: 'nicknameNotChecked' })
   const { nickname } = req.body
   const result = await models.User.update({ nickname }, { where: { userId: req.user.userId } })
+  return res.send({ message: 'success' })
+})
+
+// 회원정보 수정 - 비밀번호 
+app.put("/api/updateUserInfo/updatePassword", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const { password } = req.body
+  const result = await models.User.update({ password: await bcrypt.hash(password, 10) }, { where: { userId: req.user.userId } })
   return res.send({ message: 'success' })
 })
 
@@ -376,7 +384,7 @@ app.get("/api/user/:userId", async (req, res) => {
   return res.send({ userInfo, recentPost })
 })
 
-// post list 조회
+// 게시판 - 글 리스트 조회
 app.get("/api/post/list", async (req, res) => {
   const mbti = req.query.mbti
   let result
@@ -388,7 +396,7 @@ app.get("/api/post/list", async (req, res) => {
   return res.send(result)
 })
 
-// post view 단일 글 조회
+// 게시판 - 글 단일 조회
 app.get("/api/post/:postId", async (req, res) => {
   const { postId } = req.params
   console.log("postid : ", postId)
@@ -396,7 +404,7 @@ app.get("/api/post/:postId", async (req, res) => {
   return res.send(result)
 })
 
-// post 작성
+// 게시판 - 글 작성
 app.post("/api/post", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   let body = {
@@ -411,6 +419,7 @@ app.post("/api/post", async (req, res) => {
   return res.send({ message: 'success', result })
 })
 
+// 게시판 - 글 작성 - 이미지 업로드
 app.post("/api/post/img", upload.single('img'), async (req, res) => {
   console.log('전달받은 파일', req.file);
   console.log('저장된 파일의 이름', req.file.filename);
@@ -418,15 +427,18 @@ app.post("/api/post/img", upload.single('img'), async (req, res) => {
   res.json({ url: IMG_URL });
 })
 
-// post 삭제
+// 게시판 - 글 삭제
 app.delete("/api/post/:postId", async (req, res) => {
-  if (!req.user) return res.send({ message: 'noAuth' })
   const { postId } = req.params
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const post = await models.Post.findByPk(postId)
+  if(req.user.role != 'admin' && req.user.userId != post.writerId) return res.send({ message: 'noAuth' })
+  
   const result = await models.Post.destroy({ where: { postId, writerId: req.user.userId } })
   return res.send({ message: 'success', result })
 })
 
-// post 수정
+// 게시판 - 글 수정
 app.put("/api/post", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   if (req.body.writerId != req.user.userId) return res.send({ message: 'noAuth' })
