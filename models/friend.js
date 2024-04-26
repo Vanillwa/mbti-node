@@ -14,7 +14,12 @@ module.exports = (sequelize, DataTypes) => {
     }
   }
   Friend.init({
-    friendId: DataTypes.INTEGER,
+    friendId: {
+      allowNull: false,
+      autoIncrement: true,
+      primaryKey: true,
+      type: DataTypes.INTEGER
+    },
     status: DataTypes.STRING
   }, {
     sequelize,

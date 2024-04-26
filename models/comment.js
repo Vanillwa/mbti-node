@@ -14,10 +14,19 @@ module.exports = (sequelize, DataTypes) => {
         sourceKey: "commentId",
         foreignKey: "commentId",
       })
+      this.belongsTo(models.User,{
+        foreignKey : 'userId',
+        targetKey : 'userId'
+      })
     }
   }
   Comment.init({
-    commentId: DataTypes.INTEGER,
+    commentId: {
+      allowNull: false,
+      autoIncrement: true,
+      primaryKey: true,
+      type: DataTypes.INTEGER
+    },
     content: DataTypes.STRING,
     status: DataTypes.STRING
   }, {

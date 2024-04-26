@@ -17,7 +17,12 @@ module.exports = (sequelize, DataTypes) => {
     }
   }
   ChatRoom.init({
-    roomId: DataTypes.INTEGER,
+    roomId: {
+      allowNull: false,
+      autoIncrement: true,
+      primaryKey: true,
+      type: DataTypes.INTEGER
+    },
     title: DataTypes.STRING,
     status: DataTypes.STRING,
   }, {

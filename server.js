@@ -410,7 +410,7 @@ app.put("/api/updateUserInfo/mbti", async (req, res) => {
   const { mbti } = req.body
   const result = await models.User.update({ mbti }, { where: { userId: req.user.userId } })
   req.user.mbti = mbti
-  return res.send({ message: 'success' })
+  return res.send({ message: 'success', newUserInfo : req.user })
 })
 
 // 회원 탈퇴
@@ -433,11 +433,9 @@ app.get("/api/user/:userId", async (req, res) => {
 app.get("/api/post/list", async (req, res) => {
   const mbti = req.query.mbti
   let result
-  if (mbti == 'null') {
-    result = await models.Post.findAll({ include: [{ model: models.User }] })
-  } else {
-    result = await models.Post.findAll({ where: { category: mbti }, include: [{ model: models.User }] })
-  }
+  if (mbti == 'null') result = await models.Post.findAll({ include: [{ model: models.User }] })
+  else result = await models.Post.findAll({ where: { category: mbti }, include: [{ model: models.User }] })
+
   return res.send(result)
 })
 
@@ -493,6 +491,7 @@ app.put("/api/post", async (req, res) => {
 // 게시판 - 댓글 조회
 app.get("/api/comment", async (req, res) => {
   const { postId } = req.query
+  console.log(postId)
   const commentList = await models.Comment.findAll({ where: { postId }, include: [{ model: models.User }] })
   return res.send(commentList)
 })

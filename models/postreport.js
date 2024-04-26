@@ -14,7 +14,12 @@ module.exports = (sequelize, DataTypes) => {
     }
   }
   PostReport.init({
-    reportId: DataTypes.INTEGER,
+    reportId:{
+      allowNull: false,
+      autoIncrement: true,
+      primaryKey: true,
+      type: DataTypes.INTEGER
+    },
     type: DataTypes.STRING,
     status: DataTypes.STRING
   }, {
