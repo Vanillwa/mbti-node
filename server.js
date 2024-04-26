@@ -117,7 +117,6 @@ passport.use(
 
 passport.serializeUser((user, done) => {
   process.nextTick(() => {
-    console.log("serial");
     done(null, user.userId);
   });
 });
@@ -125,7 +124,6 @@ passport.serializeUser((user, done) => {
 passport.deserializeUser(async (userId, done) => {
   const user = await models.User.findByPk(userId);
   process.nextTick(() => {
-    console.log("deserial");
     return done(null, user);
   });
 });
@@ -407,6 +405,15 @@ app.put("/api/updateUserInfo/password", async (req, res) => {
   return res.send({ message: 'success' })
 })
 
+// 회원정보 수정 - mbti 변경
+app.put("/api/updateUserInfo/mbti", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const { mbti } = req.body
+  const result = await models.User.update({ mbti }, { where: { userId: req.user.userId } })
+  req.user.mbti = mbti
+  return res.send({ message: 'success' })
+})
+
 // 유저 프로필
 app.get("/api/user/:userId", async (req, res) => {
   const { userId } = req.params
@@ -441,9 +448,7 @@ app.post("/api/post", async (req, res) => {
   let body = {
     title: req.body.title,
     content: req.body.content,
-    status: "ok",
     category: req.body.category,
-    readhit: 0,
     writerId: req.user.userId
   }
   const result = await models.Post.create(body)
