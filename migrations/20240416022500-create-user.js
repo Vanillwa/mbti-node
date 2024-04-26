@@ -13,46 +13,49 @@ module.exports = {
         type: Sequelize.INTEGER
       },
       email: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        allowNull: false,
       },
       nickname: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        allowNull: false,
       },
       password: {
-        type: Sequelize.STRING
+        type: Sequelize.STRING,
+        allowNull: false,
       },
       role: {
         type: Sequelize.STRING,
-        defaultValue : "USER"
+        allowNull: false,
+        defaultValue: "USER"
       },
       status: {
         type: Sequelize.STRING,
-        defaultValue : "OK"
+        allowNull: false,
+        defaultValue: "ok"
       },
       profileImage: {
         type: Sequelize.STRING
       },
       chatOption: {
         type: Sequelize.STRING,
-        defaultValue : "ALL"
+        defaultValue: "friendOnly"
       },
       blockDate: {
         type: Sequelize.DATE,
-        defaultValue : null
       },
-      mbti : {
+      mbti: {
         type: Sequelize.STRING,
-        defaultValue : null
       },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE,
-        defaultValue : Sequelize.fn('now')
+        defaultValue: Sequelize.fn('now')
       },
       updatedAt: {
         allowNull: false,
         type: Sequelize.DATE,
-        defaultValue : Sequelize.fn('now')
+        defaultValue: Sequelize.fn('now')
       }
     });
   },

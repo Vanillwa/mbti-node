@@ -415,12 +415,18 @@ app.get("/api/post/list", async (req, res) => {
   return res.send(result)
 })
 
-// 게시판 - 글 단일 조회
+// 게시판 - 글 단일 조회 - 글
 app.get("/api/post/:postId", async (req, res) => {
   const { postId } = req.params
-  console.log("postid : ", postId)
   const result = await models.Post.findOne({ where: { postId }, include: [{ model: models.User }] })
   return res.send(result)
+})
+
+// 게시판 - 글 단일 조회 - 댓글
+app.get("/api/comment/:postId", async(req,res)=>{
+  const { postId } = req.params
+  const commentList = await models.Comment.findAll({ where: { postId }, include: [{ model: models.User }] })
+  return res.send(commentList)
 })
 
 // 게시판 - 글 작성
@@ -465,6 +471,7 @@ app.put("/api/post", async (req, res) => {
   const result = await models.Post.update(req.body, { where: { postId: req.body.postId } })
   return res.send({ message: 'success', result })
 })
+
 
 //채팅 요청
 app.get("/api/chat/request", async (req, res) => {
