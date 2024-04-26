@@ -360,11 +360,12 @@ app.put("/api/updateUserInfo/updateProfileImage", uploadProfileImage.single('img
 })
 
 // 회원정보 수정 - 프로필 이미지 삭제
-app.put('/api/updateUserInfo/deleteProfileImage', async (req, res) => {
+app.delete('/api/updateUserInfo/deleteProfileImage', async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const result = await models.User.update({ profileImage: null }, { where: { userId: req.user.userId } })
-  req.user.profileImage = null
-  return res.send({ message: 'success', newUserInfo: req.user })
+  const IMG_URL = `https://192.168.5.17:10000/uploads/profileImages/defaultImage`;
+  req.user.profileImage = IMG_URL
+  return res.send({ url: IMG_URL, newUserInfo: req.user })
 })
 
 // 회원정보 수정 - 닉네임 중복 체크
