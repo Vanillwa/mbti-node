@@ -422,13 +422,6 @@ app.get("/api/post/:postId", async (req, res) => {
   return res.send(result)
 })
 
-// 게시판 - 글 단일 조회 - 댓글
-app.get("/api/comment/:postId", async(req,res)=>{
-  const { postId } = req.params
-  const commentList = await models.Comment.findAll({ where: { postId }, include: [{ model: models.User }] })
-  return res.send(commentList)
-})
-
 // 게시판 - 글 작성
 app.post("/api/post", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
@@ -457,6 +450,7 @@ app.delete("/api/post/:postId", async (req, res) => {
   const { postId } = req.params
   if (!req.user) return res.send({ message: 'noAuth' })
   const post = await models.Post.findByPk(postId)
+  if (post == null) return res.send({ message: 'noExist' })
   if (req.user.role != 'admin' && req.user.userId != post.writerId) return res.send({ message: 'noAuth' })
 
   const result = await models.Post.destroy({ where: { postId, writerId: req.user.userId } })
@@ -469,6 +463,32 @@ app.put("/api/post", async (req, res) => {
   if (req.body.writerId != req.user.userId) return res.send({ message: 'noAuth' })
 
   const result = await models.Post.update(req.body, { where: { postId: req.body.postId } })
+  return res.send({ message: 'success', result })
+})
+
+// 게시판 - 댓글 조회
+app.get("/api/comment", async (req, res) => {
+  const { postId } = req.query
+  const commentList = await models.Comment.findAll({ where: { postId }, include: [{ model: models.User }] })
+  return res.send(commentList)
+})
+
+// 게시판 - 댓글 작성
+app.post("/api/comment", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const result = await models.Comment.create(req.body)
+  return res.send({ message: 'success', result })
+})
+
+// 게시판 - 댓글 삭제
+app.delete("/api/comment/:commentId", async (req, res) => {
+  const { commentId } = req.params
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const comment = await models.Comment.findByPk(commentId)
+  if (comment == null) return res.send({ message: "noExist" })
+  if (req.user.role != 'admin' && req.user.userId != comment.userId) return res.send({ message: 'noAuth' })
+
+  const result = await models.Comment.destroy({ where: { commentId, userId: req.user.userId } })
   return res.send({ message: 'success', result })
 })
 
