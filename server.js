@@ -80,10 +80,23 @@ app.use(sessionConfig);
 app.use(passport.initialize());
 app.use(passport.session());
 
-const upload = multer({
+const uploadPostImage = multer({
   storage: multer.diskStorage({
     destination(req, file, cb) {
-      cb(null, 'public/uploads')
+      cb(null, 'public/uploads/postImages')
+    },
+    filename(req, file, cb) {
+      const ext = path.extname(file.originalname);
+      console.log('file.originalname', file.originalname)
+      cb(null, path.basename(file.originalname, ext) + Date.now() + ext);
+    }
+  })
+})
+
+const uploadProfileImage = multer({
+  storage: multer.diskStorage({
+    destination(req, file, cb) {
+      cb(null, 'public/uploads/profileImages')
     },
     filename(req, file, cb) {
       const ext = path.extname(file.originalname);
@@ -129,7 +142,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "/public/index.html"));
 });
 
-// 회원가입 - 이메일 중복체크
+// 회원가입 - 이메일 중복체크 
 app.post("/api/join/checkDuplicationEmail", async (req, res) => {
   const { email } = req.body
   const result = await models.User.findOne({ where: { email } })
@@ -339,11 +352,11 @@ app.post("/api/updatePassword", async (req, res) => {
 })
 
 // 회원정보 수정 - 프로필 이미지 업로드
-app.put("/api/updateUserInfo/updateProfileImage", upload.single('img'), async (req, res) => {
+app.put("/api/updateUserInfo/updateProfileImage", uploadProfileImage.single('img'), async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   console.log('전달받은 파일', req.file);
   console.log('저장된 파일의 이름', req.file.filename);
-  const IMG_URL = `https://192.168.5.17:10000/uploads/${req.file.filename}`;
+  const IMG_URL = `https://192.168.5.17:10000/uploads/profileImages/${req.file.filename}`;
   const result = await models.User.update({ profileImage: IMG_URL }, { where: { userId: req.user.userId } })
   res.json({ url: IMG_URL });
 })
@@ -415,7 +428,7 @@ app.get("/api/post/list", async (req, res) => {
   return res.send(result)
 })
 
-// 게시판 - 글 단일 조회 - 글
+// 게시판 - 글 단일 조회
 app.get("/api/post/:postId", async (req, res) => {
   const { postId } = req.params
   const result = await models.Post.findOne({ where: { postId }, include: [{ model: models.User }] })
@@ -438,10 +451,10 @@ app.post("/api/post", async (req, res) => {
 })
 
 // 게시판 - 글 작성 - 이미지 업로드
-app.post("/api/post/img", upload.single('img'), async (req, res) => {
+app.post("/api/post/img", uploadPostImage.single('img'), async (req, res) => {
   console.log('전달받은 파일', req.file);
   console.log('저장된 파일의 이름', req.file.filename);
-  const IMG_URL = `https://192.168.5.17:10000/uploads/${req.file.filename}`;
+  const IMG_URL = `https://192.168.5.17:10000/uploads/postImages/${req.file.filename}`;
   res.json({ url: IMG_URL });
 })
 
