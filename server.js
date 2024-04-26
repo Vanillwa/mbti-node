@@ -516,6 +516,16 @@ app.delete("/api/comment/:commentId", async (req, res) => {
   return res.send({ message: 'success', result })
 })
 
+// 게시판 - 글 좋아요
+app.get("/api/like/:postId", async (req, res) => {
+  const { postId } = req.params
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const check = await models.Like.findOne({ where: { postId, userId: req.user.userId } })
+  if (check != null) return res.send({ message: "duplicated" })
+  const result = await models.Like.create({ postId, userId: req.user.userId })
+  const likeInc = await models.Post.increment({ like: 1 }, { where: { postId } })
+  return res.send({ message: 'success', result: likeInc })
+})
 
 //채팅 요청
 app.get("/api/chat/request", async (req, res) => {
