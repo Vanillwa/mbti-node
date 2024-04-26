@@ -363,7 +363,7 @@ app.put("/api/updateUserInfo/updateProfileImage", uploadProfileImage.single('img
 app.delete('/api/updateUserInfo/deleteProfileImage', async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const result = await models.User.update({ profileImage: null }, { where: { userId: req.user.userId } })
-  const IMG_URL = `https://192.168.5.17:10000/uploads/profileImages/defaultImage`;
+  const IMG_URL = `https://192.168.5.17:10000/uploads/profileImages/defaultImage.png`;
   req.user.profileImage = IMG_URL
   return res.send({ url: IMG_URL, newUserInfo: req.user })
 })
