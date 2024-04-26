@@ -354,15 +354,17 @@ app.put("/api/updateUserInfo/updateProfileImage", uploadProfileImage.single('img
   console.log('전달받은 파일', req.file);
   console.log('저장된 파일의 이름', req.file.filename);
   const IMG_URL = `https://192.168.5.17:10000/uploads/profileImages/${req.file.filename}`;
-  const result = await models.User.update({ profileImage: IMG_URL }, { where: { userId: req.user.userId } })
-  res.json({ url: IMG_URL });
+  await models.User.update({ profileImage: IMG_URL }, { where: { userId: req.user.userId } })
+  req.user.profileImage = IMG_URL
+  res.json({ url: IMG_URL, newUserInfo: req.user });
 })
 
 // 회원정보 수정 - 프로필 이미지 삭제
 app.put('/api/updateUserInfo/deleteProfileImage', async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const result = await models.User.update({ profileImage: null }, { where: { userId: req.user.userId } })
-  return res.send({ message: 'success' })
+  req.user.profileImage = null
+  return res.send({ message: 'success', newUserInfo: req.user })
 })
 
 // 회원정보 수정 - 닉네임 중복 체크
@@ -410,7 +412,7 @@ app.put("/api/updateUserInfo/mbti", async (req, res) => {
   const { mbti } = req.body
   const result = await models.User.update({ mbti }, { where: { userId: req.user.userId } })
   req.user.mbti = mbti
-  return res.send({ message: 'success', newUserInfo : req.user })
+  return res.send({ message: 'success', newUserInfo: req.user })
 })
 
 // 회원 탈퇴
@@ -433,8 +435,8 @@ app.get("/api/user/:userId", async (req, res) => {
 app.get("/api/post/list", async (req, res) => {
   const mbti = req.query.mbti
   let result
-  if (mbti == 'null') result = await models.Post.findAll({ include: [{ model: models.User }] })
-  else result = await models.Post.findAll({ where: { category: mbti }, include: [{ model: models.User }] })
+  if (mbti == 'null') result = await models.Post.findAll({ include: [{ model: models.User }], order: [['createdAt', 'DESC']] })
+  else result = await models.Post.findAll({ where: { category: mbti }, include: [{ model: models.User }], order: [['createdAt', 'DESC']] })
 
   return res.send(result)
 })
@@ -464,6 +466,7 @@ app.post("/api/post/img", uploadPostImage.single('img'), async (req, res) => {
   console.log('전달받은 파일', req.file);
   console.log('저장된 파일의 이름', req.file.filename);
   const IMG_URL = `https://192.168.5.17:10000/uploads/postImages/${req.file.filename}`;
+
   res.json({ url: IMG_URL });
 })
 
