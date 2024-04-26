@@ -184,7 +184,6 @@ app.post("/api/join/requestEmailVerification", async (req, res) => {
       return
     }
   })
-
   return res.send({ message: 'success', code: randNum })
 })
 
@@ -412,6 +411,13 @@ app.put("/api/updateUserInfo/mbti", async (req, res) => {
   const result = await models.User.update({ mbti }, { where: { userId: req.user.userId } })
   req.user.mbti = mbti
   return res.send({ message: 'success' })
+})
+
+// 회원 탈퇴
+app.delete("/api/user", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const result = await models.User.destroy({ where: { userId: req.user.userId } })
+  if (result > 0) return res.send({ message: 'success' })
 })
 
 // 유저 프로필
