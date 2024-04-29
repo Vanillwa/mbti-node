@@ -357,7 +357,9 @@ app.put("/api/updateUserInfo/updateProfileImage", uploadProfileImage.single('img
   const IMG_URL = `https://192.168.5.17:10000/uploads/profileImages/${req.file.filename}`;
   await models.User.update({ profileImage: IMG_URL }, { where: { userId: req.user.userId } })
   req.user.profileImage = IMG_URL
-  res.json({ url: IMG_URL, newUserInfo: req.user });
+  let newUserInfo = req.user
+  delete newUserInfo.password
+  res.json({ url: IMG_URL, newUserInfo });
 })
 
 // 회원정보 수정 - 프로필 이미지 삭제
@@ -366,7 +368,9 @@ app.delete('/api/updateUserInfo/deleteProfileImage', async (req, res) => {
   const result = await models.User.update({ profileImage: null }, { where: { userId: req.user.userId } })
   const IMG_URL = `https://192.168.5.17:10000/uploads/profileImages/defaultImage.png`;
   req.user.profileImage = IMG_URL
-  return res.send({ url: IMG_URL, newUserInfo: req.user })
+  let newUserInfo = req.user
+  delete newUserInfo.password
+  return res.send({ url: IMG_URL, newUserInfo })
 })
 
 // 회원정보 수정 - 닉네임 중복 체크
@@ -396,7 +400,9 @@ app.put("/api/updateUserInfo/nickname", async (req, res) => {
   const { nickname } = req.body
   const result = await models.User.update({ nickname }, { where: { userId: req.user.userId } })
   req.user.nickname = nickname
-  return res.send({ message: 'success', newUserInfo: req.user })
+  let newUserInfo = req.user
+  delete newUserInfo.password
+  return res.send({ message: 'success', newUserInfo })
 })
 
 // 회원정보 수정 - 비밀번호 변경
@@ -419,7 +425,7 @@ app.put("/api/updateUserInfo/mbti", async (req, res) => {
 // 회원 탈퇴 - 비밀번호 확인
 app.post("/api/deleteUser/passwordCheck", (req, res) => {
   const { password } = req.body
-  if(!req.user) return res.send({ message: 'noAuth' })
+  if (!req.user) return res.send({ message: 'noAuth' })
   if (password != req.user.password) {
     delete req.session.deleteUserPasswordCheck
     return res.send({ message: 'fail' })
