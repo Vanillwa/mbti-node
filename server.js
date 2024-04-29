@@ -419,6 +419,7 @@ app.put("/api/updateUserInfo/mbti", async (req, res) => {
 // 회원 탈퇴 - 비밀번호 확인
 app.post("/api/deleteUser/passwordCheck", (req, res) => {
   const { password } = req.body
+  if(!req.user) return res.send({ message: 'noAuth' })
   if (password != req.user.password) {
     delete req.session.deleteUserPasswordCheck
     return res.send({ message: 'fail' })
