@@ -400,8 +400,10 @@ app.put("/api/updateUserInfo/nickname", async (req, res) => {
   const { nickname } = req.body
   const result = await models.User.update({ nickname }, { where: { userId: req.user.userId } })
   req.user.nickname = nickname
-  let newUserInfo = req.user
+  let newUserInfo = { ...req.user }
+  console.log("password : ", newUserInfo.password)
   delete newUserInfo.password
+  console.log("newUserInfo : ", newUserInfo)
   return res.send({ message: 'success', newUserInfo })
 })
 
@@ -419,7 +421,9 @@ app.put("/api/updateUserInfo/mbti", async (req, res) => {
   const { mbti } = req.body
   const result = await models.User.update({ mbti }, { where: { userId: req.user.userId } })
   req.user.mbti = mbti
-  return res.send({ message: 'success', newUserInfo: req.user })
+  let newUserInfo = req.user
+  delete newUserInfo.password
+  return res.send({ message: 'success', newUserInfo })
 })
 
 // 회원 탈퇴 - 비밀번호 확인
@@ -538,7 +542,21 @@ app.delete("/api/comment/:commentId", async (req, res) => {
   if (req.user.role != 'admin' && req.user.userId != comment.userId) return res.send({ message: 'noAuth' })
 
   const result = await models.Comment.destroy({ where: { commentId, userId: req.user.userId } })
-  return res.send({ message: 'success', result })
+  if(result > 0) return res.send({message : 'success'})
+  else return res.send({message : 'fail'})
+})
+
+// 댓글 수정
+app.put("/api/comment/:commentId", async (req, res) => {
+  const { commentId } = req.params
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const comment = await models.Comment.findByPk(commentId)
+  if (comment == null) return res.send({ message: "noExist" })
+  if (req.user.role != 'admin' && req.user.userId != comment.userId) return res.send({ message: 'noAuth' })
+
+  const result = await models.Comment.update(req.body, { where: { userId: req.user.userId } })
+  if(result > 0) return res.send({message : 'success'})
+  else return res.send({message : 'fail'})
 })
 
 // 게시판 - 글 좋아요
