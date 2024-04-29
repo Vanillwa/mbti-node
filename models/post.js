@@ -43,7 +43,8 @@ module.exports = (sequelize, DataTypes) => {
     content: DataTypes.STRING,
     status: DataTypes.STRING,
     category: DataTypes.STRING,
-    readhit: DataTypes.INTEGER
+    readhit: DataTypes.INTEGER,
+    like : DataTypes.INTEGER
   }, {
     sequelize,
     modelName: 'Post',

@@ -87,7 +87,6 @@ const uploadPostImage = multer({
     },
     filename(req, file, cb) {
       const ext = path.extname(file.originalname);
-      console.log('file.originalname', file.originalname)
       cb(null, path.basename(file.originalname, ext) + Date.now() + ext);
     }
   })
@@ -100,7 +99,6 @@ const uploadProfileImage = multer({
     },
     filename(req, file, cb) {
       const ext = path.extname(file.originalname);
-      console.log('file.originalname', file.originalname)
       cb(null, path.basename(file.originalname, ext) + Date.now() + ext);
     }
   })
@@ -123,7 +121,6 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (userId, done) => {
   const user = await models.User.findByPk(userId);
-  delete user.dataValues.password
   process.nextTick(() => {
     return done(null, user);
   });
@@ -238,6 +235,7 @@ app.post("/api/join", async (req, res) => {
     nickname,
     password: await bcrypt.hash(password, 10),
     role: "USER",
+    profileImage : `https://192.168.5.17:10000/uploads/profileImages/defaultImage.png`,
     mbti,
     status: 'ok',
     chatOption: 'friendOnly'
@@ -257,7 +255,6 @@ app.post("/api/login", async (req, res, next) => {
     req.login(user, (error) => {
       if (error) return next(error);
       console.log("로그인 완료");
-      console.log("req.user : ", req.user)
       let userInfo = {
         userId: req.user.userId,
         email: req.user.email,
@@ -354,7 +351,6 @@ app.post("/api/updatePassword", async (req, res) => {
 // 회원정보 수정 - 프로필 이미지 업로드
 app.put("/api/updateUserInfo/updateProfileImage", uploadProfileImage.single('img'), async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  console.log('전달받은 파일', req.file);
   console.log('저장된 파일의 이름', req.file.filename);
   const IMG_URL = `https://192.168.5.17:10000/uploads/profileImages/${req.file.filename}`;
   await models.User.update({ profileImage: IMG_URL }, { where: { userId: req.user.userId } })
@@ -405,7 +401,6 @@ app.put("/api/updateUserInfo/nickname", async (req, res) => {
     req.user.nickname = nickname
     let newUserInfo = { ...req.user.dataValues }
     delete newUserInfo.password
-    console.log("newUserInfo : ", newUserInfo)
     return res.send({ message: 'success', newUserInfo })
   } else {
     return res.send({ message: 'fail' })
@@ -425,32 +420,42 @@ app.put("/api/updateUserInfo/mbti", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const { mbti } = req.body
   const result = await models.User.update({ mbti }, { where: { userId: req.user.userId } })
-  req.user.mbti = mbti
-  let newUserInfo = req.user
-  delete newUserInfo.password
-  return res.send({ message: 'success', newUserInfo })
+  if (result > 0) {
+    req.user.mbti = mbti
+    let newUserInfo = { ...req.user.dataValues }
+    delete newUserInfo.password
+    return res.send({ message: 'success', newUserInfo })
+  } else {
+    return res.send({ message: 'fail' })
+  }
 })
 
 // 회원 탈퇴 - 비밀번호 확인
-app.post("/api/deleteUser/passwordCheck", (req, res) => {
+app.post("/api/deleteUser/passwordCheck", async (req, res) => {
   const { password } = req.body
   if (!req.user) return res.send({ message: 'noAuth' })
-  if (password != req.user.password) {
-    delete req.session.deleteUserPasswordCheck
-    return res.send({ message: 'fail' })
+  if (await bcrypt.compare(password, req.user.password)) {
+    req.session.deleteUserPasswordCheck = true
+    return res.send({ message: 'success' })
   }
-  req.session.deleteUserPasswordCheck = true
-  return res.send({ message: 'success' })
+  delete req.session.deleteUserPasswordCheck
+  return res.send({ message: 'fail' })
 })
 
 // 회원 탈퇴
 app.delete("/api/user", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   if (!req.session.deleteUserPasswordCheck) return res.send({ message: 'noPasswordCheck' })
-
-  const result = await models.User.update({ status: 'deleted' }, { where: { userId: req.user.userId } })
-  console.log(result)
-  if (result > 0) return res.send({ message: 'success' })
+  delete req.session.deleteUserPasswordCheck
+  const result = await models.User.update({ email: 'deleted', status: 'deleted' }, { where: { userId: req.user.userId } })
+  if (result > 0) {
+    await models.Post.update({ status: 'deleted', where: { writerId: req.user.userId } })
+    await models.Comment.update({ status: 'deleted', where: { userId: req.user.userId } })
+    req.logout(() => {
+      req.session.destroy();
+      return res.send({ message: "success" });
+    });
+  }
   else return res.send({ message: 'fail' })
 })
 
@@ -481,14 +486,14 @@ app.get("/api/post/:postId", async (req, res) => {
 })
 
 // 게시판 - 글 좋아요 누름
-app.get("/api/post/:postId/addLike", async (req, res) => {
+app.get("/api/addLike/:postId", async (req, res) => {
   const { postId } = req.params
   if (!req.user) return res.send({ message: 'noAuth' })
   const check = await models.Like.findOne({ where: { postId, userId: req.user.userId } })
   if (check != null) return res.send({ message: "duplicated" })
   await models.Like.create({ postId, userId: req.user.userId })
   const likeInc = await models.Post.increment({ like: 1 }, { where: { postId } })
-  return res.send({ message: 'success', result: likeInc })
+  return res.send({ message: 'success', likes: likeInc })
 })
 
 // 게시판 - 글 작성
@@ -574,8 +579,6 @@ app.put("/api/comment/:commentId", async (req, res) => {
   if (result > 0) return res.send({ message: 'success' })
   else return res.send({ message: 'fail' })
 })
-
-
 
 //채팅 요청
 app.get("/api/chat/request", async (req, res) => {
