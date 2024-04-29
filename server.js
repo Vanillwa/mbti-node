@@ -138,6 +138,7 @@ https.createServer(options, app).listen(port, () => {
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "/public/index.html"));
+  res.send({ userInfo: req.user })
 });
 
 // 회원가입 - 이메일 중복체크 
@@ -403,7 +404,6 @@ app.put("/api/updateUserInfo/password", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const { password } = req.body
   const result = await models.User.update({ password: await bcrypt.hash(password, 10) }, { where: { userId: req.user.userId } })
-  req.user.password = password
   return res.send({ message: 'success' })
 })
 
@@ -416,11 +416,26 @@ app.put("/api/updateUserInfo/mbti", async (req, res) => {
   return res.send({ message: 'success', newUserInfo: req.user })
 })
 
+// 회원 탈퇴 - 비밀번호 확인
+app.post("/api/deleteUser/passwordCheck", (req, res) => {
+  const { password } = req.body
+  if (password != req.user.password) {
+    delete req.session.deleteUserPasswordCheck
+    return res.send({ message: 'fail' })
+  }
+  req.session.deleteUserPasswordCheck = true
+  return res.send({ message: 'success' })
+})
+
 // 회원 탈퇴
 app.delete("/api/user", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
+  if (!req.session.deleteUserPasswordCheck) return res.send({ message: 'noPasswordCheck' })
+
   const result = await models.User.destroy({ where: { userId: req.user.userId } })
+  console.log(result)
   if (result > 0) return res.send({ message: 'success' })
+  else return res.send({ message: 'fail' })
 })
 
 // 유저 프로필
