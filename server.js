@@ -448,7 +448,7 @@ app.delete("/api/user", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   if (!req.session.deleteUserPasswordCheck) return res.send({ message: 'noPasswordCheck' })
 
-  const result = await models.User.update({status : 'deleted'},{ where: { userId: req.user.userId } })
+  const result = await models.User.update({ status: 'deleted' }, { where: { userId: req.user.userId } })
   console.log(result)
   if (result > 0) return res.send({ message: 'success' })
   else return res.send({ message: 'fail' })
@@ -478,6 +478,17 @@ app.get("/api/post/:postId", async (req, res) => {
   const { postId } = req.params
   const result = await models.Post.findOne({ where: { postId }, include: [{ model: models.User }] })
   return res.send(result)
+})
+
+// 게시판 - 글 좋아요 누름
+app.get("/api/post/:postId/addLike", async (req, res) => {
+  const { postId } = req.params
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const check = await models.Like.findOne({ where: { postId, userId: req.user.userId } })
+  if (check != null) return res.send({ message: "duplicated" })
+  await models.Like.create({ postId, userId: req.user.userId })
+  const likeInc = await models.Post.increment({ like: 1 }, { where: { postId } })
+  return res.send({ message: 'success', result: likeInc })
 })
 
 // 게시판 - 글 작성
@@ -564,16 +575,7 @@ app.put("/api/comment/:commentId", async (req, res) => {
   else return res.send({ message: 'fail' })
 })
 
-// 게시판 - 글 좋아요
-app.get("/api/like/:postId", async (req, res) => {
-  const { postId } = req.params
-  if (!req.user) return res.send({ message: 'noAuth' })
-  const check = await models.Like.findOne({ where: { postId, userId: req.user.userId } })
-  if (check != null) return res.send({ message: "duplicated" })
-  const result = await models.Like.create({ postId, userId: req.user.userId })
-  const likeInc = await models.Post.increment({ like: 1 }, { where: { postId } })
-  return res.send({ message: 'success', result: likeInc })
-})
+
 
 //채팅 요청
 app.get("/api/chat/request", async (req, res) => {
