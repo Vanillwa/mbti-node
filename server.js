@@ -601,11 +601,28 @@ app.get("/api/friend/request", async (req, res) => {
 // 친구 요청 리스트 조회
 app.get("/api/friend/getRequest", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  const result = models.Friend.findAll({ where: { targetId: req.user.userId, status: 'pending' } })
-  return res.send({ message: 'success', result })
+  const result = await models.Friend.findAll({ where: { targetId: req.user.userId, status: 'pending' } })
+  return res.send(result)
 })
 
+// 친구 요청 수락
+app.get("/api/friend/accept", async (req, res) => {
+  const { friendId } = req.query
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const friend = await models.Friend.findByPk(friendId)
+  const result = await models.Friend.update({ status: 'friend' }, { where: { friendId } })
+  if (result > 0) {
+    await models.Friend.create({ userId: req.user.userId, targetId: friend.userId, status: 'friend' })
+    return res.send({ message: 'success' })
+  }
+})
 
+// 친구 리스트 조회
+app.get("/api/friend", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const result = await models.Friend.findAll({ where: { userId: req.user.userId } })
+  return res.send(result)
+})
 
 //------------------------------------------------------------------------------------------
 
