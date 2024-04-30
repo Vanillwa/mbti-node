@@ -235,7 +235,7 @@ app.post("/api/join", async (req, res) => {
     nickname,
     password: await bcrypt.hash(password, 10),
     role: "USER",
-    profileImage : `https://192.168.5.17:10000/uploads/profileImages/defaultImage.png`,
+    profileImage: `https://192.168.5.17:10000/uploads/profileImages/defaultImage.png`,
     mbti,
     status: 'ok',
     chatOption: 'friendOnly'
@@ -579,6 +579,27 @@ app.put("/api/comment/:commentId", async (req, res) => {
   if (result > 0) return res.send({ message: 'success' })
   else return res.send({ message: 'fail' })
 })
+
+// 친구 요청
+app.get("/api/friend/request", async (req, res) => {
+  const { targetId } = req.query;
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const check = await models.Friend.findOne({ where: { userId: req.user.userId, targetId } })
+  if (check != null) {
+    if (check.status === 'friend') // 이미 친구일 경우
+      return res.send({ message: 'duplicated' })
+    if (check.status === 'blocked') // 이미 차단한 경우
+      return res.send({ message: 'blocked' })
+    if (check.status === 'pending') // 이미 친구 요청을 보낸 경우
+      return res.send({ message: 'pending' })
+  }
+
+  const result = await models.Friend.create({ userId: req.user.userId, targetId, status: 'pending' })
+  return res.send({ message: 'success' })
+})
+
+
+//------------------------------------------------------------------------------------------
 
 //채팅 요청
 app.get("/api/chat/request", async (req, res) => {
