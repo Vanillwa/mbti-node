@@ -598,6 +598,12 @@ app.get("/api/friend/request", async (req, res) => {
   return res.send({ message: 'success' })
 })
 
+// 친구 요청 리스트 조회
+app.get("/api/friend/getRequest", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const result = models.Friend.findAll({ where: { userId: req.user.userId } })
+  return res.send({ message: 'success', result })
+})
 
 //------------------------------------------------------------------------------------------
 
