@@ -37,10 +37,12 @@ module.exports = (sequelize, DataTypes) => {
       this.hasMany(models.Friend, {
         sourceKey: "userId",
         foreignKey: "userId",
+        as : 'requestUser'
       })
       this.hasMany(models.Friend, {
         sourceKey: "userId",
         foreignKey: "targetId",
+        as : 'receiveUser'
       })
       this.hasMany(models.PostReport, {
         sourceKey: "userId",

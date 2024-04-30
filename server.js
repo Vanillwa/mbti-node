@@ -601,7 +601,7 @@ app.get("/api/friend/request", async (req, res) => {
 // 친구 요청 리스트 조회
 app.get("/api/friend/getRequest", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  const result = await models.Friend.findAll({ where: { targetId: req.user.userId, status: 'pending' } })
+  const result = await models.Friend.findAll({ where: { targetId: req.user.userId, status: 'pending' }, include: [{ model: models.User, as: 'requestUser' }, { model: models.User, as: 'receiveUser' }] })
   return res.send(result)
 })
 
@@ -617,12 +617,40 @@ app.get("/api/friend/accept", async (req, res) => {
   }
 })
 
+// 친구 요청 거절
+app.delete("/api/friend/reject", async (req, res) => {
+  const { friendId } = req.query
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const result = await models.Friend.delete({ where: { friendId } })
+  if (result > 0) {
+    return res.send({ message: 'success' })
+  }
+})
+
 // 친구 리스트 조회
 app.get("/api/friend", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const result = await models.Friend.findAll({ where: { userId: req.user.userId } })
   return res.send(result)
 })
+
+// 게시글 신고
+app.post("/api/post/report", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  let body = req.body
+  body.userId = req.user.userId
+  body.status = 'pending'
+  await models.PostReport.create(req.body)
+  return res.send({ message: 'success' })
+})
+
+// 신고 내역 조회 (관리자)
+app.get("/api/report/post", async (req, res) => {
+  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const result = await models.PostReport.findAll()
+  return res.send(result)
+})
+
 
 //------------------------------------------------------------------------------------------
 

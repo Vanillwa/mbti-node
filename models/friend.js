@@ -10,7 +10,16 @@ module.exports = (sequelize, DataTypes) => {
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // define association here
+      this.belongsTo(models.User,{
+        foreignKey : 'userId',
+        targetKey : 'userId',
+        as : 'requestUser'
+      })
+      this.belongsTo(models.User,{
+        foreignKey : 'targetId',
+        targetKey : 'userId',
+        as : 'receiveUser'
+      })
     }
   }
   Friend.init({
