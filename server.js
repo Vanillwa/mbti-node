@@ -222,7 +222,7 @@ app.get("/api/join/nicknameChanged", (req, res) => {
 // 회원가입
 app.post("/api/join", async (req, res) => {
   const { email, nickname, password, mbti } = req.body;
-
+  console.log(req.body)
   if (req.session.isJoinEmailChecked != true) return res.send({ message: "emailNotChecked" })
   if (req.session.isJoinEmailVerified != true) return res.send({ message: "emailNotVerified" })
   if (req.session.isJoinNicknameChecked != true) return res.send({ message: "nicknameNotChecked" })
@@ -234,7 +234,7 @@ app.post("/api/join", async (req, res) => {
     email,
     nickname,
     password: await bcrypt.hash(password, 10),
-    role: "USER",
+    role: "user",
     profileImage: `https://192.168.5.17:10000/uploads/profileImages/defaultImage.png`,
     mbti,
     status: 'ok',
@@ -249,6 +249,7 @@ app.post("/api/join", async (req, res) => {
 
 // 로그인
 app.post("/api/login", async (req, res, next) => {
+  console.log(req.body)
   passport.authenticate("local", (error, user, info) => {
     if (error) return res.status(500).json(error);
     if (!user) return res.send(info);
@@ -615,22 +616,36 @@ app.get("/api/friend/accept", async (req, res) => {
     await models.Friend.create({ userId: req.user.userId, targetId: friend.userId, status: 'friend' })
     return res.send({ message: 'success' })
   }
+  return res.send({ message: 'fail' })
 })
 
 // 친구 요청 거절
 app.delete("/api/friend/reject", async (req, res) => {
   const { friendId } = req.query
   if (!req.user) return res.send({ message: 'noAuth' })
-  const result = await models.Friend.delete({ where: { friendId } })
+  const result = await models.Friend.destroy({ where: { friendId } })
   if (result > 0) {
     return res.send({ message: 'success' })
   }
 })
 
+// 친구 차단
+app.put("/api/friend/block", async (req, res) => {
+  const { friendId } = req.query
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const friend = await models.Friend.findByPk(friendId)
+  const result = await models.Friend.update({ status: 'blocked' }, { where: { friendId } })
+  if (result > 0) {
+    await models.Friend.create({ userId: req.user.userId, targetId: friend.userId, status: 'blocked' })
+    return res.send({ message: 'success' })
+  }
+  return res.send({ message: 'fail' })
+})
+
 // 친구 리스트 조회
 app.get("/api/friend", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  const result = await models.Friend.findAll({ where: { userId: req.user.userId } })
+  const result = await models.Friend.findAll({ where: { userId: req.user.userId }, include: { model: models.User, as: 'receiveUser' } })
   return res.send(result)
 })
 
@@ -647,7 +662,8 @@ app.post("/api/post/report", async (req, res) => {
 // 신고 내역 조회 (관리자)
 app.get("/api/report/post", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.PostReport.findAll()
+  const result = await models.PostReport.findAll({ include: [{ model: models.Post }, { model: models.User }] })
+  console.log(result)
   return res.send(result)
 })
 
