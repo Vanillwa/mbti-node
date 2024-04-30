@@ -601,9 +601,11 @@ app.get("/api/friend/request", async (req, res) => {
 // 친구 요청 리스트 조회
 app.get("/api/friend/getRequest", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  const result = models.Friend.findAll({ where: { userId: req.user.userId } })
+  const result = models.Friend.findAll({ where: { targetId: req.user.userId, status: 'pending' } })
   return res.send({ message: 'success', result })
 })
+
+
 
 //------------------------------------------------------------------------------------------
 
