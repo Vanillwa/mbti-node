@@ -222,7 +222,6 @@ app.get("/api/join/nicknameChanged", (req, res) => {
 // 회원가입
 app.post("/api/join", async (req, res) => {
   const { email, nickname, password, mbti } = req.body;
-  console.log(req.body)
   if (req.session.isJoinEmailChecked != true) return res.send({ message: "emailNotChecked" })
   if (req.session.isJoinEmailVerified != true) return res.send({ message: "emailNotVerified" })
   if (req.session.isJoinNicknameChecked != true) return res.send({ message: "nicknameNotChecked" })
@@ -249,7 +248,6 @@ app.post("/api/join", async (req, res) => {
 
 // 로그인
 app.post("/api/login", async (req, res, next) => {
-  console.log(req.body)
   passport.authenticate("local", (error, user, info) => {
     if (error) return res.status(500).json(error);
     if (!user) return res.send(info);
@@ -448,10 +446,11 @@ app.delete("/api/user", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   if (!req.session.deleteUserPasswordCheck) return res.send({ message: 'noPasswordCheck' })
   delete req.session.deleteUserPasswordCheck
-  const result = await models.User.update({ email: 'deleted', status: 'deleted' }, { where: { userId: req.user.userId } })
+  console.log("req.user : ", req.user)
+  const result = await models.User.update({ email: 'deleted', nickname: 'deleted', status: 'deleted' }, { where: { userId: req.user.userId } })
   if (result > 0) {
-    await models.Post.update({ status: 'deleted', where: { writerId: req.user.userId } })
-    await models.Comment.update({ status: 'deleted', where: { userId: req.user.userId } })
+    await models.Post.update({ status: 'deleted' }, { where: { writerId: req.user.userId } })
+    await models.Comment.update({ status: 'deleted' }, { where: { userId: req.user.userId } })
     req.logout(() => {
       req.session.destroy();
       return res.send({ message: "success" });
@@ -482,6 +481,7 @@ app.get("/api/post/list", async (req, res) => {
 // 게시판 - 글 단일 조회
 app.get("/api/post/:postId", async (req, res) => {
   const { postId } = req.params
+  await models.Post.increment({ readhit: 1 }, { where: { postId } })
   const result = await models.Post.findOne({ where: { postId }, include: [{ model: models.User }] })
   return res.send(result)
 })
@@ -512,7 +512,6 @@ app.post("/api/post", async (req, res) => {
 
 // 게시판 - 글 작성 - 이미지 업로드
 app.post("/api/post/img", uploadPostImage.single('img'), async (req, res) => {
-  console.log('전달받은 파일', req.file);
   console.log('저장된 파일의 이름', req.file.filename);
   const IMG_URL = `https://192.168.5.17:10000/uploads/postImages/${req.file.filename}`;
 
@@ -543,7 +542,6 @@ app.put("/api/post", async (req, res) => {
 // 게시판 - 댓글 조회
 app.get("/api/comment", async (req, res) => {
   const { postId } = req.query
-  console.log(postId)
   const commentList = await models.Comment.findAll({ where: { postId }, include: [{ model: models.User }] })
   return res.send(commentList)
 })
@@ -645,7 +643,7 @@ app.put("/api/friend/block", async (req, res) => {
 // 친구 리스트 조회
 app.get("/api/friend", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  const result = await models.Friend.findAll({ where: { userId: req.user.userId }, include: { model: models.User, as: 'receiveUser' } })
+  const result = await models.Friend.findAll({ where: { userId: req.user.userId, status: 'friend' }, include: { model: models.User, as: 'receiveUser' } })
   return res.send(result)
 })
 
@@ -661,9 +659,9 @@ app.post("/api/post/report", async (req, res) => {
 
 // 신고 내역 조회 (관리자)
 app.get("/api/report/post", async (req, res) => {
+  console.log("도착")
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const result = await models.PostReport.findAll({ include: [{ model: models.Post }, { model: models.User }] })
-  console.log(result)
   return res.send(result)
 })
 
