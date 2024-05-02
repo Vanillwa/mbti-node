@@ -479,11 +479,28 @@ app.get("/api/user/:userId", async (req, res) => {
 // 게시판 - 글 리스트 조회
 app.get("/api/post/list", async (req, res) => {
   const { mbti, page, size, sort, order } = req.query
+  let startPage, lastPage, totalPage
+  totalPage = await models.Post.count()
+  if (totalPage <= 5) {
+    startPage = 1;
+    lastPage = totalPage;
+  } else {
+    if (page < 3) {
+      startPage = 1;
+      lastPage = 5;
+    } else if (page > totalPage - 2) {
+      startPage = totalPage - 4;
+      lastPage = totalPage;
+    } else {
+      startPage = page - 2;
+      lastPage = page + 2;
+    }
+  }
   let result
-  if (mbti == 'null') result = await models.Post.findAll({ offset: (page - 1) * size, limit: size, include: [{ model: models.User }], order: [[sort, order]] })
-  else result = await models.Post.findAll({ offset: (page - 1) * size, limit: size, where: { category: mbti }, include: [{ model: models.User }], order: [[sort, order]] })
+  if (mbti == 'null') result = await models.Post.findAll({ offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [[sort, order]] })
+  else result = await models.Post.findAll({ offset: (parseInt(page) - 1) * size, limit: parseInt(size), where: { category: mbti }, include: [{ model: models.User }], order: [[sort, order]] })
 
-  return res.send(result)
+  return res.send({ result: list, startPage, lastPage, totalPage })
 })
 
 // 게시판 - 글 단일 조회
