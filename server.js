@@ -479,8 +479,20 @@ app.get("/api/user/:userId", async (req, res) => {
 // 게시판 - 글 리스트 조회
 app.get("/api/post/list", async (req, res) => {
   const { mbti, page, size, sort, order } = req.query
-  let startPage, lastPage, totalPage
-  totalPage = await models.Post.count()
+  let startPage, lastPage, totalPage, totalCount
+
+  let result
+  if (mbti == 'null') {
+    totalCount = await models.Post.count()
+    result = await models.Post.findAll({ offset: (parseInt(page) - 1) * size, limit: 1, include: [{ model: models.User }], order: [[sort, order]] })
+  }
+  else {
+    totalCount = await models.Post.count({ where: { category: mbti } })
+    result = await models.Post.findAll({ offset: (parseInt(page) - 1) * size, limit: parseInt(size), where: { category: mbti }, include: [{ model: models.User }], order: [[sort, order]] })
+  }
+
+  totalPage = math.ceil(totalCount / 5)
+
   if (totalPage <= 5) {
     startPage = 1;
     lastPage = totalPage;
@@ -496,11 +508,12 @@ app.get("/api/post/list", async (req, res) => {
       lastPage = page + 2;
     }
   }
-  let result
-  if (mbti == 'null') result = await models.Post.findAll({ offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [[sort, order]] })
-  else result = await models.Post.findAll({ offset: (parseInt(page) - 1) * size, limit: parseInt(size), where: { category: mbti }, include: [{ model: models.User }], order: [[sort, order]] })
-
-  return res.send({ result: list, startPage, lastPage, totalPage })
+  let paging = {
+    startPage,
+    lastPage,
+    totalPage
+  }
+  return res.send({ list: result, paging })
 })
 
 // 게시판 - 글 단일 조회
