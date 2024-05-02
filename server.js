@@ -352,22 +352,30 @@ app.put("/api/updateUserInfo/updateProfileImage", uploadProfileImage.single('img
   if (!req.user) return res.send({ message: 'noAuth' })
   console.log('저장된 파일의 이름', req.file.filename);
   const IMG_URL = `https://192.168.5.17:10000/uploads/profileImages/${req.file.filename}`;
-  await models.User.update({ profileImage: IMG_URL }, { where: { userId: req.user.userId } })
-  req.user.profileImage = IMG_URL
-  let newUserInfo = req.user
-  delete newUserInfo.password
-  res.json({ url: IMG_URL, newUserInfo });
+  const result = await models.User.update({ profileImage: IMG_URL }, { where: { userId: req.user.userId } })
+  if (result > 0) {
+    req.user.profileImage = IMG_URL
+    let newUserInfo = { ...req.user.dataValues }
+    delete newUserInfo.password
+    res.json({ url: IMG_URL, newUserInfo });
+  } else {
+    return res.send({ message: 'fail' })
+  }
 })
 
 // 회원정보 수정 - 프로필 이미지 삭제
 app.delete('/api/updateUserInfo/deleteProfileImage', async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  const result = await models.User.update({ profileImage: null }, { where: { userId: req.user.userId } })
   const IMG_URL = `https://192.168.5.17:10000/uploads/profileImages/defaultImage.png`;
-  req.user.profileImage = IMG_URL
-  let newUserInfo = req.user
-  delete newUserInfo.password
-  return res.send({ url: IMG_URL, newUserInfo })
+  const result = await models.User.update({ profileImage: IMG_URL }, { where: { userId: req.user.userId } })
+  if (result > 0) {
+    req.user.profileImage = IMG_URL
+    let newUserInfo = { ...req.user.dataValues }
+    delete newUserInfo.password
+    res.json({ url: IMG_URL, newUserInfo });
+  } else {
+    return res.send({ message: 'fail' })
+  }
 })
 
 // 회원정보 수정 - 닉네임 중복 체크
@@ -470,10 +478,10 @@ app.get("/api/user/:userId", async (req, res) => {
 
 // 게시판 - 글 리스트 조회
 app.get("/api/post/list", async (req, res) => {
-  const mbti = req.query.mbti
+  const { mbti, page, size, sort, order } = req.query
   let result
-  if (mbti == 'null') result = await models.Post.findAll({ include: [{ model: models.User }], order: [['createdAt', 'DESC']] })
-  else result = await models.Post.findAll({ where: { category: mbti }, include: [{ model: models.User }], order: [['createdAt', 'DESC']] })
+  if (mbti == 'null') result = await models.Post.findAll({ offset: (page - 1) * size, limit: size, include: [{ model: models.User }], order: [[sort, order]] })
+  else result = await models.Post.findAll({ offset: (page - 1) * size, limit: size, where: { category: mbti }, include: [{ model: models.User }], order: [[sort, order]] })
 
   return res.send(result)
 })
