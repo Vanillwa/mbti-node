@@ -706,6 +706,15 @@ app.get("/api/report/post", async (req, res) => {
   return res.send(result)
 })
 
+// 신고 내역 처리 (관리자)
+app.put("/api/report/:reportId", async (req, res) => {
+  const { reportId } = req.params
+  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const result = await models.PostReport.update({ status: 'done', where: { reportId } })
+  if (result > 0) return res.send({ message: 'success' })
+  return res.send({ message: 'fail' })
+})
+
 
 //------------------------------------------------------------------------------------------
 
