@@ -472,26 +472,27 @@ app.get("/api/user/:userId", async (req, res) => {
   const { userId } = req.params
   const userInfo = await models.User.findByPk(userId)
   const recentPost = await models.Post.findAll({ where: { writerId: userId } })
-
-  return res.send({ userInfo, recentPost })
+  const recentComment = await models.Comment.findAll({ where: { userId } })
+  return res.send({ userInfo, recentPost, recentComment })
 })
 
 // 게시판 - 글 리스트 조회
 app.get("/api/post/list", async (req, res) => {
-  const { mbti, page, size, sort, order } = req.query
-  let startPage, lastPage, totalPage, totalCount
+  const { mbti, sort, order } = req.query
+  const page = parseInt(req.query.page)
+  const size = parseInt(req.query.size)
 
-  let result
+  let startPage, lastPage, totalPage, totalCount, result
   if (mbti == 'null') {
     totalCount = await models.Post.count()
-    result = await models.Post.findAll({ offset: (parseInt(page) - 1) * size, limit: 1, include: [{ model: models.User }], order: [[sort, order]] })
+    result = await models.Post.findAll({ offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [[sort, order]] })
   }
   else {
     totalCount = await models.Post.count({ where: { category: mbti } })
     result = await models.Post.findAll({ offset: (parseInt(page) - 1) * size, limit: parseInt(size), where: { category: mbti }, include: [{ model: models.User }], order: [[sort, order]] })
   }
 
-  totalPage = math.ceil(totalCount / 5)
+  totalPage = math.ceil(totalCount / size)
 
   if (totalPage <= 5) {
     startPage = 1;
@@ -647,9 +648,12 @@ app.get("/api/friend/accept", async (req, res) => {
   const { friendId } = req.query
   if (!req.user) return res.send({ message: 'noAuth' })
   const friend = await models.Friend.findByPk(friendId)
+  if (friend.status === 'friend') return res.send({ messagge: 'alreadyFriend' }) // 친구 요청을 수락했는데 이미 친구상태인 경우
   const result = await models.Friend.update({ status: 'friend' }, { where: { friendId } })
   if (result > 0) {
-    await models.Friend.create({ userId: req.user.userId, targetId: friend.userId, status: 'friend' })
+    const check = await models.Friend.findOne({ where: { userId: friend.targetId, targetId: friend.userId } }) // 
+    if (check != null) await models.Friend.update({ status: "friend" }, { where: { friendId: check.friendId } })
+    else await models.Friend.create({ userId: req.user.userId, targetId: friend.userId, status: 'friend' })
     return res.send({ message: 'success' })
   }
   return res.send({ message: 'fail' })
@@ -697,7 +701,6 @@ app.post("/api/post/report", async (req, res) => {
 
 // 신고 내역 조회 (관리자)
 app.get("/api/report/post", async (req, res) => {
-  console.log("도착")
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const result = await models.PostReport.findAll({ include: [{ model: models.Post }, { model: models.User }] })
   return res.send(result)
