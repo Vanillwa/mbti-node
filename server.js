@@ -648,11 +648,11 @@ app.get("/api/friend/accept", async (req, res) => {
   const { friendId } = req.query
   if (!req.user) return res.send({ message: 'noAuth' })
   const friend = await models.Friend.findByPk(friendId)
-  if (friend.status === 'friend') return res.send({ messagge: 'alreadyFriend' }) // 친구 요청을 수락했는데 이미 친구상태인 경우
+  // if (friend.status === 'friend') return res.send({ messagge: 'alreadyFriend' }) // 친구 요청을 수락했는데 이미 친구상태인 경우
   const result = await models.Friend.update({ status: 'friend' }, { where: { friendId } })
   if (result > 0) {
-    const check = await models.Friend.findOne({ where: { userId: friend.targetId, targetId: friend.userId } }) // 
-    if (check != null) await models.Friend.update({ status: "friend" }, { where: { friendId: check.friendId } })
+    const check = await models.Friend.findOne({ where: { userId: friend.targetId, targetId: friend.userId } })
+    if (check != null) await models.Friend.update({ status: "friend" }, { where: { friendId: check.friendId } }) // 만약 내가 보낸 친구 요청이 있다면
     else await models.Friend.create({ userId: req.user.userId, targetId: friend.userId, status: 'friend' })
     return res.send({ message: 'success' })
   }
@@ -704,15 +704,16 @@ app.post("/api/post/report", async (req, res) => {
 // 신고 내역 조회 (관리자)
 app.get("/api/report/post", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.PostReport.findAll({ include: [{ model: models.Post, include: [{ model: models.User }] }, { model: models.User }] })
+  const result = await models.PostReport.findAll({ where: { status: 'pending' }, include: [{ model: models.Post, include: [{ model: models.User }] }, { model: models.User }] })
   return res.send(result)
 })
 
 // 신고 내역 처리 (관리자)
-app.put("/api/report/:reportId", async (req, res) => {
+app.put("/api/report/post/:reportId", async (req, res) => {
   const { reportId } = req.params
+  console.log("reportId : ", reportId)
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.PostReport.update({ status: 'done', where: { reportId } })
+  const result = await models.PostReport.update({ status: 'done' }, { where: { reportId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
 })
@@ -721,7 +722,8 @@ app.put("/api/report/:reportId", async (req, res) => {
 app.put("/api/user/block", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const { postId, userId, blockDate } = req.query
-  const result = await models.User.update({ blockDate }, { where: { userId } })
+  await models.Post.update({ status: 'blocked' }, { where: { postId } })
+  const result = await models.User.update({ blockDate, status: 'blocked' }, { where: { userId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
 })
@@ -731,6 +733,15 @@ app.get("/api/user", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const result = await models.User.findAll()
   return res.send(result)
+})
+
+// 사용자 계정 정지 해제
+app.put("/api/user/unblock", async (req, res) => {
+  const { userId } = req.query
+  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const result = await models.User.update({ status: "ok" }, { where: { userId } })
+  if (result > 0) return res.send({ message: 'success' })
+  return res.send({ message: 'fail' })
 })
 
 //------------------------------------------------------------------------------------------
