@@ -695,6 +695,8 @@ app.post("/api/post/report", async (req, res) => {
   let body = req.body
   body.userId = req.user.userId
   body.status = 'pending'
+  const check = await models.PostReport.findOne({ where: { postId: body.postId, userId: req.user.userId } })
+  if (check != null) return res.send({ message: 'duplicated' })
   await models.PostReport.create(req.body)
   return res.send({ message: 'success' })
 })
@@ -702,7 +704,7 @@ app.post("/api/post/report", async (req, res) => {
 // 신고 내역 조회 (관리자)
 app.get("/api/report/post", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.PostReport.findAll({ include: [{ model: models.Post }, { model: models.User }] })
+  const result = await models.PostReport.findAll({ include: [{ model: models.Post, include: [{ model: models.User }] }, { model: models.User }] })
   return res.send(result)
 })
 
@@ -715,6 +717,21 @@ app.put("/api/report/:reportId", async (req, res) => {
   return res.send({ message: 'fail' })
 })
 
+// 사용자 계정 정지
+app.put("/api/user/block", async (req, res) => {
+  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const { postId, userId, blockDate } = req.query
+  const result = await models.User.update({ blockDate }, { where: { userId } })
+  if (result > 0) return res.send({ message: 'success' })
+  return res.send({ message: 'fail' })
+})
+
+// 사용자 리스트 조회
+app.get("/api/user", async (req, res) => {
+  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const result = await models.User.findAll()
+  return res.send(result)
+})
 
 //------------------------------------------------------------------------------------------
 
