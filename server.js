@@ -108,6 +108,14 @@ passport.use(
   new localStrategy({ usernameField: 'email', passwordField: 'password' }, async (email, password, cb) => {
     let result = await models.User.findOne({ where: { email } });
     if (!result) return cb(null, false, { message: "NoExist" });
+    if(result.status === 'blocked'){
+      const now = new Date()
+      if(now.getDate() < result.blockDate){
+        await models.User.update({status : 'ok', blockDate : null}, {where : {userId : result.userId}})
+      }else{
+        return cb(null, false, { message: "blocked", blockDate : result.blockDate });
+      }
+    } 
     if (await bcrypt.compare(password, result.password)) return cb(null, result);
     return cb(null, false, { message: "PwdFail" });
   })
@@ -651,8 +659,8 @@ app.get("/api/friend/accept", async (req, res) => {
   // if (friend.status === 'friend') return res.send({ messagge: 'alreadyFriend' }) // 친구 요청을 수락했는데 이미 친구상태인 경우
   const result = await models.Friend.update({ status: 'friend' }, { where: { friendId } })
   if (result > 0) {
-    const check = await models.Friend.findOne({ where: { userId: friend.targetId, targetId: friend.userId } })
-    if (check != null) await models.Friend.update({ status: "friend" }, { where: { friendId: check.friendId } }) // 만약 내가 보낸 친구 요청이 있다면
+    const check = await models.Friend.findOne({ where: { userId: req.user.userId, targetId: friend.userId } }) // 만약 내가 보낸 친구 요청이 있다면
+    if (check != null) await models.Friend.update({ status: "friend" }, { where: { friendId: check.friendId } }) 
     else await models.Friend.create({ userId: req.user.userId, targetId: friend.userId, status: 'friend' })
     return res.send({ message: 'success' })
   }
@@ -731,13 +739,27 @@ app.put("/api/user/block", async (req, res) => {
 // 사용자 리스트 조회
 app.get("/api/user", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.User.findAll()
+  const { filter, keyword, type } = req.query
+  console.log(req.query)
+  let result
+  if (filter != '') {
+    if (keyword != '') {
+      if (type === 'email') result = await models.User.findAll({ where: { status: filter, email: { [Op.like]: `%${keyword}%` } } })
+      else if (type === 'nickname') result = await models.User.findAll({ where: { status: filter, nickname: { [Op.like]: `%${keyword}%` } } })
+    } else result = await models.User.findAll({ where: { status: filter } })
+  } else {
+    if (keyword != '') {
+      if (type === 'email') result = await models.User.findAll({ where: { email: { [Op.like]: `%${keyword}%` } } })
+      else if (type === 'nickname') result = await models.User.findAll({ where: { nickname: { [Op.like]: `%${keyword}%` } } })
+    } else result = await models.User.findAll()
+  }
   return res.send(result)
 })
 
-// 사용자 계정 정지 해제
+// 사용자 계정 차단 해제
 app.put("/api/user/unblock", async (req, res) => {
   const { userId } = req.query
+  console.log("userId : ", userId)
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const result = await models.User.update({ status: "ok" }, { where: { userId } })
   if (result > 0) return res.send({ message: 'success' })
