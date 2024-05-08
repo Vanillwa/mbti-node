@@ -108,14 +108,14 @@ passport.use(
   new localStrategy({ usernameField: 'email', passwordField: 'password' }, async (email, password, cb) => {
     let result = await models.User.findOne({ where: { email } });
     if (!result) return cb(null, false, { message: "NoExist" });
-    if(result.status === 'blocked'){
+    if (result.status === 'blocked') {
       const now = new Date()
-      if(now.getDate() < result.blockDate){
-        await models.User.update({status : 'ok', blockDate : null}, {where : {userId : result.userId}})
-      }else{
-        return cb(null, false, { message: "blocked", blockDate : result.blockDate });
+      if (now.getDate() < result.blockDate) {
+        await models.User.update({ status: 'ok', blockDate: null }, { where: { userId: result.userId } })
+      } else {
+        return cb(null, false, { message: "blocked", blockDate: result.blockDate });
       }
-    } 
+    }
     if (await bcrypt.compare(password, result.password)) return cb(null, result);
     return cb(null, false, { message: "PwdFail" });
   })
@@ -588,9 +588,38 @@ app.put("/api/post", async (req, res) => {
 
 // 게시판 - 댓글 조회
 app.get("/api/comment", async (req, res) => {
-  const { postId } = req.query
-  const commentList = await models.Comment.findAll({ where: { postId }, include: [{ model: models.User }] })
-  return res.send(commentList)
+  const { postId, order } = req.query
+  const page = parseInt(req.query.page)
+  const size = parseInt(req.query.size)
+
+  let startPage, lastPage, totalPage, totalCount, commentList
+
+  totalCount = await models.Comment.count()
+  result = await models.Comment.findAll({ where: { postId } }, { offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [[createdAt, order]] })
+
+  totalPage = math.ceil(totalCount / size)
+
+  if (totalPage <= 5) {
+    startPage = 1;
+    lastPage = totalPage;
+  } else {
+    if (page < 3) {
+      startPage = 1;
+      lastPage = 5;
+    } else if (page > totalPage - 2) {
+      startPage = totalPage - 4;
+      lastPage = totalPage;
+    } else {
+      startPage = page - 2;
+      lastPage = page + 2;
+    }
+  }
+  let paging = {
+    startPage,
+    lastPage,
+    totalPage
+  }
+  return res.send({ commentList, paging })
 })
 
 // 게시판 - 댓글 작성
@@ -656,11 +685,10 @@ app.get("/api/friend/accept", async (req, res) => {
   const { friendId } = req.query
   if (!req.user) return res.send({ message: 'noAuth' })
   const friend = await models.Friend.findByPk(friendId)
-  // if (friend.status === 'friend') return res.send({ messagge: 'alreadyFriend' }) // 친구 요청을 수락했는데 이미 친구상태인 경우
   const result = await models.Friend.update({ status: 'friend' }, { where: { friendId } })
   if (result > 0) {
     const check = await models.Friend.findOne({ where: { userId: req.user.userId, targetId: friend.userId } }) // 만약 내가 보낸 친구 요청이 있다면
-    if (check != null) await models.Friend.update({ status: "friend" }, { where: { friendId: check.friendId } }) 
+    if (check != null) await models.Friend.update({ status: "friend" }, { where: { friendId: check.friendId } })
     else await models.Friend.create({ userId: req.user.userId, targetId: friend.userId, status: 'friend' })
     return res.send({ message: 'success' })
   }
