@@ -595,7 +595,7 @@ app.get("/api/comment", async (req, res) => {
   let startPage, lastPage, totalPage, totalCount, commentList
 
   totalCount = await models.Comment.count()
-  result = await models.Comment.findAll({ where: { postId } }, { offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [[createdAt, order]] })
+  commentList = await models.Comment.findAll({ where: { postId }, offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [['createdAt', order]] })
 
   totalPage = math.ceil(totalCount / size)
 
@@ -715,6 +715,19 @@ app.put("/api/friend/block", async (req, res) => {
     await models.Friend.create({ userId: req.user.userId, targetId: friend.userId, status: 'blocked' })
     return res.send({ message: 'success' })
   }
+  return res.send({ message: 'fail' })
+})
+
+// 친구 삭제
+app.delete("/api/friend/delete", async (req, res) => {
+  const { friendId } = req.query
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const friend = await models.Friend.findByPk(friendId)
+  const result = await models.Friend.destroy({ where: { friendId } })
+  if (result > 0) {
+    await models.Friend.destroy({ where: { userId: friend.targetId, targetId: friend.userId } })
+    return res.send({ message: 'success' })
+  } 
   return res.send({ message: 'fail' })
 })
 
