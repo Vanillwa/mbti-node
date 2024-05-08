@@ -727,7 +727,7 @@ app.delete("/api/friend/delete", async (req, res) => {
   if (result > 0) {
     await models.Friend.destroy({ where: { userId: friend.targetId, targetId: friend.userId } })
     return res.send({ message: 'success' })
-  } 
+  }
   return res.send({ message: 'fail' })
 })
 
@@ -814,6 +814,10 @@ app.get("/api/chat/request", async (req, res) => {
   const { targetId } = req.query;
   if (!req.user) return res.send({ message: "noAuth" });
   const targetUser = await models.User.findByPk(targetId);
+  if (targetUser.chatOption === 'friendOnly') {
+    const friendCheck = await models.Friend.findOne({ where: { userId: req.user.userId, targetId, status: 'friend' } })
+    if (friendCheck == null) return res.send({ message: 'notFriend' })
+  }
   let userId1, userId2
   if (req.user.userId < targetId) {
     userId1 = req.user.userId
@@ -829,7 +833,7 @@ app.get("/api/chat/request", async (req, res) => {
 
 //채팅 리스트
 app.get("/api/chat", async (req, res) => {
-  if (!req.user) return res.status(401);
+  if (!req.user) return res.send({ message: "noAuth" });
   const result = await models.ChatRoom.findAll({ where: { [Op.or]: [{ userId1: req.user.userId }, { userId2: req.user.userId }] } });
   return res.send(result);
 });
