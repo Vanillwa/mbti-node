@@ -14,6 +14,10 @@ module.exports = (sequelize, DataTypes) => {
         sourceKey: "messageId",
         foreignKey: "messageId",
       })
+      this.belongsTo(models.User,{
+        foreignKey : 'userId',
+        targetKey : 'userId'
+      })
     }
   }
   Message.init({

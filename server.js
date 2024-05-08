@@ -47,15 +47,7 @@ const smtpTransport = mailer.createTransport({
   }
 })
 
-// const http = require("http");
-// const server = http.createServer(app);
-// const { Server } = require("socket.io");
-// const io = new Server(server, {
-//   cors: {
-//     origin: true,
-//     credentials: true,
-//   },
-// });
+
 
 const dbConfig = {
   host: "localhost",
@@ -138,8 +130,16 @@ app.listen(11111, () => {
   console.log(`http://192.168.5.17:11111`);
 });
 
-https.createServer(options, app).listen(port, () => {
+const server = https.createServer(options, app).listen(port, () => {
   console.log(`https://192.168.5.17:${port}`);
+});
+
+const { Server } = require("socket.io");
+const io = new Server(server, {
+  cors: {
+    origin: true,
+    credentials: true,
+  },
 });
 
 app.get("/", (req, res) => {
@@ -632,12 +632,11 @@ app.post("/api/comment", async (req, res) => {
 // 게시판 - 댓글 삭제
 app.delete("/api/comment/:commentId", async (req, res) => {
   const { commentId } = req.params
-  if (!req.user) return res.send({ message: 'noAuth' })
   const comment = await models.Comment.findByPk(commentId)
   if (comment == null) return res.send({ message: "noExist" })
   if (req.user.role != 'admin' && req.user.userId != comment.userId) return res.send({ message: 'noAuth' })
 
-  const result = await models.Comment.destroy({ where: { commentId, userId: req.user.userId } })
+  const result = await models.Comment.update({ status: 'deleted' }, { where: { commentId, userId: req.user.userId } })
   if (result > 0) return res.send({ message: 'success' })
   else return res.send({ message: 'fail' })
 })
@@ -721,6 +720,7 @@ app.put("/api/friend/block", async (req, res) => {
 // 친구 삭제
 app.delete("/api/friend/delete", async (req, res) => {
   const { friendId } = req.query
+  console.log("friendId : ", friendId)
   if (!req.user) return res.send({ message: 'noAuth' })
   const friend = await models.Friend.findByPk(friendId)
   const result = await models.Friend.destroy({ where: { friendId } })
@@ -812,6 +812,7 @@ app.put("/api/user/unblock", async (req, res) => {
 //채팅 요청
 app.get("/api/chat/request", async (req, res) => {
   const { targetId } = req.query;
+  console.log("targetId : ,", targetId)
   if (!req.user) return res.send({ message: "noAuth" });
   const targetUser = await models.User.findByPk(targetId);
   if (targetUser.chatOption === 'friendOnly') {
@@ -826,9 +827,10 @@ app.get("/api/chat/request", async (req, res) => {
     userId1 = targetId
     userId2 = req.user.userId
   }
-
+  const check = await models.ChatRoom.findOne({ where: { userId1, userId2 } })
+  if (check != null) return res.send({ message: 'duplicated', roomId: check.roomId })
   const result = await models.ChatRoom.create({ title: `${req.user.nickname}님과 ${targetUser.nickname}님의 채팅방`, userId1, userId2 });
-  return res.send({ message: "success", roomId: result.id });
+  return res.send({ message: "success", roomId: result.roomId });
 });
 
 //채팅 리스트
@@ -838,54 +840,49 @@ app.get("/api/chat", async (req, res) => {
   return res.send(result);
 });
 
-//여기부터 고쳐야함
-app.get("/api/chat/:id", async (req, res) => {
-  const { id } = req.params;
-  const roomInfo = await models.ChatRoom.findByPk(id);
-  const messageList = await models.Message.findAll({ where: { roomId: id }, include: { model: models.User }, order: [["createdAt", "DESC"]] });
-  console.log(messageList);
+//채팅방 입장
+app.get("/api/chat/:roomId", async (req, res) => {
+  const { roomId } = req.params;
+  const roomInfo = await models.ChatRoom.findByPk(roomId);
+  const messageList = await models.Message.findAll({ where: { roomId }, include: { model: models.User }, order: [["createdAt", "DESC"]] });
   return res.send({ roomInfo, messageList });
 });
 
-// function onlyForHandshake(middleware) {
-//   return (req, res, next) => {
-//     const isHandshake = req._query.sid === undefined;
-//     if (isHandshake) {
-//       middleware(req, res, next);
-//     } else {
-//       next();
-//     }
-//   };
-// }
+function onlyForHandshake(middleware) {
+  return (req, res, next) => {
+    const isHandshake = req._query.sid === undefined;
+    if (isHandshake) middleware(req, res, next);
+    else next();
+  };
+}
 
-// io.engine.use(onlyForHandshake(sessionConfig));
-// io.engine.use(onlyForHandshake(passport.session()));
-// io.engine.use(
-//   onlyForHandshake((req, res, next) => {
-//     if (req.user) {
-//       next();
-//     } else {
-//       res.writeHead(401);
-//       res.end();
-//     }
-//   })
-// );
+io.engine.use(onlyForHandshake(sessionConfig));
+io.engine.use(onlyForHandshake(passport.session()));
+io.engine.use(
+  onlyForHandshake((req, res, next) => {
+    if (req.user) next();
+    else {
+      res.writeHead(401);
+      res.end();
+    }
+  })
+);
 
-// io.on("connection", (socket) => {
-//   console.log("socket connected");
+io.on("connection", (socket) => {
+  console.log("socket connected");
 
-//   socket.on("ask-join", async (data) => {
-//     console.log("socket room 확인");
-//     socket.join(data);
-//   });
+  socket.on("ask-join", async (data) => {
+    console.log("socket room 확인");
+    socket.join(data);
+  });
 
-//   socket.on("send-message", async (data) => {
-//     let user = socket.request.user;
-//     const result = await models.Message.create({ content: data.content, userId: user.id, roomId: data.roomId });
-//     let newResult = { ...result.dataValues, User: { nickname: user.nickname } };
-//     io.to(data.roomId).emit("send-message", newResult);
-//   });
-// });
+  socket.on("send-message", async (data) => {
+    let user = socket.request.user;
+    const result = await models.Message.create({ message: data.message, userId: user.userId, roomId: data.roomId });
+    let newResult = { ...result.dataValues, User: { nickname: user.nickname } };
+    io.to(data.roomId).emit("send-message", newResult);
+  });
+});
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "/public/index.html"));
