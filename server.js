@@ -705,21 +705,20 @@ app.delete("/api/friend/reject", async (req, res) => {
 
 // 친구 차단
 app.put("/api/friend/block", async (req, res) => {
-  const { friendId } = req.query
+  const { targetId } = req.query
   if (!req.user) return res.send({ message: 'noAuth' })
-  const friend = await models.Friend.findByPk(friendId)
-  const result = await models.Friend.update({ status: 'blocked' }, { where: { friendId } })
-  if (result > 0) {
-    await models.Friend.create({ userId: req.user.userId, targetId: friend.userId, status: 'blocked' })
-    return res.send({ message: 'success' })
-  }
-  return res.send({ message: 'fail' })
+  const update1 = await models.Friend.update({ status: "blocked" }, { where: { userId: req.user.userId, targetId } })
+  if (update1 < 1) await models.Friend.create({ status: 'blocked', userId: req.user.userId, targetId })
+
+  const update2 = await models.Friend.update({ status: "blocked" }, { where: { userId: targetId, targetId: req.user.userId } })
+  if (update2 < 1) await models.Friend.create({ status: 'blocked', userId: targetId, targetId: req.user.userId })
+
+  return res.send({ message: 'success' })
 })
 
 // 친구 삭제
 app.delete("/api/friend/delete", async (req, res) => {
   const { friendId } = req.query
-  console.log("friendId : ", friendId)
   if (!req.user) return res.send({ message: 'noAuth' })
   const friend = await models.Friend.findByPk(friendId)
   const result = await models.Friend.destroy({ where: { friendId } })
@@ -743,6 +742,8 @@ app.get("/api/blockedUser", async (req, res) => {
   const result = await models.Friend.findAll({ where: { userId: req.user.userId, status: 'blocked' }, include: { model: models.User, as: 'receiveUser' } })
   return res.send(result)
 })
+
+// 차단 해제
 
 // 게시글 신고
 app.post("/api/post/report", async (req, res) => {
