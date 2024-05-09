@@ -744,6 +744,13 @@ app.get("/api/friend/blockList", async (req, res) => {
 })
 
 // 차단 해제
+app.delete("/api/friend/unblock", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const { targetId } = req.query
+  await models.Friend.destroy({ where: { status: 'blocked', userId: req.user.userId, targetId } })
+  await models.Friend.destroy({ where: { status: 'blocked', userId: targetId, targetId: req.user.userId } })
+  return res.send({ message: 'success' })
+})
 
 // 게시글 신고
 app.post("/api/post/report", async (req, res) => {
