@@ -491,11 +491,11 @@ app.get("/api/post/list", async (req, res) => {
   let startPage, lastPage, totalPage, totalCount, result
   if (mbti == 'null') {
     totalCount = await models.Post.count()
-    result = await models.Post.findAll({ offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [[sort, order]] })
+    result = await models.Post.findAll({ where: { status: 'ok' }, offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [[sort, order]] })
   }
   else {
     totalCount = await models.Post.count({ where: { category: mbti } })
-    result = await models.Post.findAll({ offset: (parseInt(page) - 1) * size, limit: parseInt(size), where: { category: mbti }, include: [{ model: models.User }], order: [[sort, order]] })
+    result = await models.Post.findAll({ where: { status: 'ok' }, offset: (parseInt(page) - 1) * size, limit: parseInt(size), where: { category: mbti }, include: [{ model: models.User }], order: [[sort, order]] })
   }
 
   totalPage = math.ceil(totalCount / size)
@@ -786,10 +786,12 @@ app.put("/api/user/block", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const { postId, commentId, userId, blockDate } = req.body
   console.log(req.query)
-  if(postId != null){
+  if (postId != null) {
     await models.Post.update({ status: 'blocked' }, { where: { postId } })
   }
-
+  if (commentId != null) {
+    await models.Comment.update({ status: 'blocked' }, { where: { commentId } })
+  }
   const result = await models.User.update({ blockDate, status: 'blocked' }, { where: { userId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
@@ -810,7 +812,7 @@ app.post("/api/comment/report", async (req, res) => {
 // 댓글 신고 내역 조회 (관리자)
 app.get("/api/report/comment", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.CommentReport.findAll({ where: { status: 'pending' }, include: [{ model: models.Post, include: [{ model: models.User }] }, { model: models.User }] })
+  const result = await models.CommentReport.findAll({ where: { status: 'pending' }, include: [{ model: models.Comment, include: [{ model: models.User }] }, { model: models.User }] })
   return res.send(result)
 })
 
