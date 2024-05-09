@@ -47,8 +47,6 @@ const smtpTransport = mailer.createTransport({
   }
 })
 
-
-
 const dbConfig = {
   host: "localhost",
   port: "3306",
@@ -739,6 +737,13 @@ app.get("/api/friend", async (req, res) => {
   return res.send(result)
 })
 
+// 차단 리스트 조회
+app.get("/api/blockedUser", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  const result = await models.Friend.findAll({ where: { userId: req.user.userId, status: 'blocked' }, include: { model: models.User, as: 'receiveUser' } })
+  return res.send(result)
+})
+
 // 게시글 신고
 app.post("/api/post/report", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
@@ -781,21 +786,65 @@ app.put("/api/user/block", async (req, res) => {
 // 사용자 리스트 조회
 app.get("/api/user", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const { filter, keyword, type } = req.query
-  console.log(req.query)
-  let result
+  const { filter, keyword, type, page, size } = req.query
+  let limit = parseInt(size)
+  let currenPage = parseInt(page)
+  let startPage, lastPage, totalPage, totalCount, result
+
+
   if (filter != '') {
     if (keyword != '') {
-      if (type === 'email') result = await models.User.findAll({ where: { status: filter, email: { [Op.like]: `%${keyword}%` } } })
-      else if (type === 'nickname') result = await models.User.findAll({ where: { status: filter, nickname: { [Op.like]: `%${keyword}%` } } })
-    } else result = await models.User.findAll({ where: { status: filter } })
+      if (type === 'email') {
+        totalCount = await models.User.count({ where: { status: filter, email: { [Op.like]: `%${keyword}%` } } })
+        result = await models.User.findAll({ where: { status: filter, email: { [Op.like]: `%${keyword}%` } }, offset: (currenPage - 1) * limit, limit })
+      }
+      else if (type === 'nickname') {
+        totalCount = await models.User.count({ where: { status: filter, nickname: { [Op.like]: `%${keyword}%` } } })
+        result = await models.User.findAll({ where: { status: filter, nickname: { [Op.like]: `%${keyword}%` } }, offset: (currenPage - 1) * limit, limit })
+      }
+    } else {
+      totalCount = await models.User.count({ where: { status: filter } })
+      result = await models.User.findAll({ where: { status: filter }, offset: (currenPage - 1) * limit, limit })
+    }
   } else {
     if (keyword != '') {
-      if (type === 'email') result = await models.User.findAll({ where: { email: { [Op.like]: `%${keyword}%` } } })
-      else if (type === 'nickname') result = await models.User.findAll({ where: { nickname: { [Op.like]: `%${keyword}%` } } })
-    } else result = await models.User.findAll()
+      if (type === 'email') {
+        totalCount = await models.User.count({ where: { status: { [Op.notIn]: ['deleted'] }, email: { [Op.like]: `%${keyword}%` } } })
+        result = await models.User.findAll({ where: { status: { [Op.notIn]: ['deleted'] }, email: { [Op.like]: `%${keyword}%` } }, offset: (currenPage - 1) * limit, limit })
+      }
+      else if (type === 'nickname') {
+        totalCount = await models.User.count({ where: { status: { [Op.notIn]: ['deleted'] }, nickname: { [Op.like]: `%${keyword}%` } } })
+        result = await models.User.findAll({ where: { status: { [Op.notIn]: ['deleted'] }, nickname: { [Op.like]: `%${keyword}%` } }, offset: (currenPage - 1) * limit, limit })
+      }
+    } else {
+      totalCount = await models.User.count({ where: { status: { [Op.notIn]: ['deleted'] } } })
+      result = await models.User.findAll({ where: { status: { [Op.notIn]: ['deleted'] }, }, offset: (currenPage - 1) * limit, limit })
+    }
   }
-  return res.send(result)
+
+  totalPage = math.ceil(totalCount / limit)
+
+  if (totalPage <= 5) {
+    startPage = 1;
+    lastPage = totalPage;
+  } else {
+    if (page < 3) {
+      startPage = 1;
+      lastPage = 5;
+    } else if (page > totalPage - 2) {
+      startPage = totalPage - 4;
+      lastPage = totalPage;
+    } else {
+      startPage = page - 2;
+      lastPage = page + 2;
+    }
+  }
+  let paging = {
+    startPage,
+    lastPage,
+    totalPage
+  }
+  return res.send({ result, paging })
 })
 
 // 사용자 계정 차단 해제
