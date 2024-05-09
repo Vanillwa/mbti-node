@@ -594,8 +594,8 @@ app.get("/api/comment", async (req, res) => {
 
   let startPage, lastPage, totalPage, totalCount, commentList
 
-  totalCount = await models.Comment.count()
-  commentList = await models.Comment.findAll({ where: { postId }, offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [['createdAt', order]] })
+  totalCount = await models.Comment.count({ where: { status: "ok " } })
+  commentList = await models.Comment.findAll({ where: { postId, status: "ok" }, offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [['createdAt', order]] })
 
   totalPage = math.ceil(totalCount / size)
 
@@ -639,6 +639,7 @@ app.delete("/api/comment/:commentId", async (req, res) => {
   const result = await models.Comment.update({ status: 'deleted' }, { where: { commentId, userId: req.user.userId } })
   if (result > 0) return res.send({ message: 'success' })
   else return res.send({ message: 'fail' })
+
 })
 
 // 댓글 수정
