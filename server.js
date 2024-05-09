@@ -784,10 +784,12 @@ app.put("/api/report/post/:reportId", async (req, res) => {
 // 사용자 계정 정지 
 app.put("/api/user/block", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const { postId, commentId, userId, blockDate } = req.query
-  if (postId != null) {
+  const { postId, commentId, userId, blockDate } = req.body
+  console.log(req.query)
+  if(postId != null){
     await models.Post.update({ status: 'blocked' }, { where: { postId } })
   }
+
   const result = await models.User.update({ blockDate, status: 'blocked' }, { where: { userId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
