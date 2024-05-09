@@ -764,14 +764,14 @@ app.post("/api/post/report", async (req, res) => {
   return res.send({ message: 'success' })
 })
 
-// 신고 내역 조회 (관리자)
+// 게시글 신고 내역 조회 (관리자)
 app.get("/api/report/post", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const result = await models.PostReport.findAll({ where: { status: 'pending' }, include: [{ model: models.Post, include: [{ model: models.User }] }, { model: models.User }] })
   return res.send(result)
 })
 
-// 신고 내역 처리 (관리자)
+// 게시글 신고 내역 처리 (관리자)
 app.put("/api/report/post/:reportId", async (req, res) => {
   const { reportId } = req.params
   console.log("reportId : ", reportId)
@@ -781,12 +781,42 @@ app.put("/api/report/post/:reportId", async (req, res) => {
   return res.send({ message: 'fail' })
 })
 
-// 사용자 계정 정지
+// 사용자 계정 정지 
 app.put("/api/user/block", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const { postId, userId, blockDate } = req.query
-  await models.Post.update({ status: 'blocked' }, { where: { postId } })
+  const { postId, commentId, userId, blockDate } = req.query
+  if (postId != null) {
+    await models.Post.update({ status: 'blocked' }, { where: { postId } })
+  }
   const result = await models.User.update({ blockDate, status: 'blocked' }, { where: { userId } })
+  if (result > 0) return res.send({ message: 'success' })
+  return res.send({ message: 'fail' })
+})
+
+// 댓글 신고
+app.post("/api/comment/report", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  let body = req.body
+  body.userId = req.user.userId
+  body.status = 'pending'
+  const check = await models.CommentReport.findOne({ where: { commentId: body.commentId, userId: req.user.userId } })
+  if (check != null) return res.send({ message: 'duplicated' })
+  await models.CommentReport.create(req.body)
+  return res.send({ message: 'success' })
+})
+
+// 댓글 신고 내역 조회 (관리자)
+app.get("/api/report/comment", async (req, res) => {
+  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const result = await models.CommentReport.findAll({ where: { status: 'pending' }, include: [{ model: models.Post, include: [{ model: models.User }] }, { model: models.User }] })
+  return res.send(result)
+})
+
+// 댓글 신고 내역 처리 (관리자)
+app.put("/api/report/comment/:reportId", async (req, res) => {
+  const { reportId } = req.params
+  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const result = await models.CommentReport.update({ status: 'done' }, { where: { reportId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
 })
@@ -796,7 +826,7 @@ app.get("/api/user", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const { filter, keyword, type, page, size } = req.query
   let limit = parseInt(size)
-  let currenPage = parseInt(page)
+  let currentPage = parseInt(page)
   let startPage, lastPage, totalPage, totalCount, result
 
 
@@ -804,29 +834,29 @@ app.get("/api/user", async (req, res) => {
     if (keyword != '') {
       if (type === 'email') {
         totalCount = await models.User.count({ where: { status: filter, email: { [Op.like]: `%${keyword}%` } } })
-        result = await models.User.findAll({ where: { status: filter, email: { [Op.like]: `%${keyword}%` } }, offset: (currenPage - 1) * limit, limit })
+        result = await models.User.findAll({ where: { status: filter, email: { [Op.like]: `%${keyword}%` } }, offset: (currentPage - 1) * limit, limit })
       }
       else if (type === 'nickname') {
         totalCount = await models.User.count({ where: { status: filter, nickname: { [Op.like]: `%${keyword}%` } } })
-        result = await models.User.findAll({ where: { status: filter, nickname: { [Op.like]: `%${keyword}%` } }, offset: (currenPage - 1) * limit, limit })
+        result = await models.User.findAll({ where: { status: filter, nickname: { [Op.like]: `%${keyword}%` } }, offset: (currentPage - 1) * limit, limit })
       }
     } else {
       totalCount = await models.User.count({ where: { status: filter } })
-      result = await models.User.findAll({ where: { status: filter }, offset: (currenPage - 1) * limit, limit })
+      result = await models.User.findAll({ where: { status: filter }, offset: (currentPage - 1) * limit, limit })
     }
   } else {
     if (keyword != '') {
       if (type === 'email') {
         totalCount = await models.User.count({ where: { status: { [Op.notIn]: ['deleted'] }, email: { [Op.like]: `%${keyword}%` } } })
-        result = await models.User.findAll({ where: { status: { [Op.notIn]: ['deleted'] }, email: { [Op.like]: `%${keyword}%` } }, offset: (currenPage - 1) * limit, limit })
+        result = await models.User.findAll({ where: { status: { [Op.notIn]: ['deleted'] }, email: { [Op.like]: `%${keyword}%` } }, offset: (currentPage - 1) * limit, limit })
       }
       else if (type === 'nickname') {
         totalCount = await models.User.count({ where: { status: { [Op.notIn]: ['deleted'] }, nickname: { [Op.like]: `%${keyword}%` } } })
-        result = await models.User.findAll({ where: { status: { [Op.notIn]: ['deleted'] }, nickname: { [Op.like]: `%${keyword}%` } }, offset: (currenPage - 1) * limit, limit })
+        result = await models.User.findAll({ where: { status: { [Op.notIn]: ['deleted'] }, nickname: { [Op.like]: `%${keyword}%` } }, offset: (currentPage - 1) * limit, limit })
       }
     } else {
       totalCount = await models.User.count({ where: { status: { [Op.notIn]: ['deleted'] } } })
-      result = await models.User.findAll({ where: { status: { [Op.notIn]: ['deleted'] }, }, offset: (currenPage - 1) * limit, limit })
+      result = await models.User.findAll({ where: { status: { [Op.notIn]: ['deleted'] }, }, offset: (currentPage - 1) * limit, limit })
     }
   }
 
