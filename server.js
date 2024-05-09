@@ -672,7 +672,7 @@ app.get("/api/friend/request", async (req, res) => {
 })
 
 // 친구 요청 리스트 조회
-app.get("/api/friend/getRequest", async (req, res) => {
+app.get("/api/friend/requestList", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const result = await models.Friend.findAll({ where: { targetId: req.user.userId, status: 'pending' }, include: [{ model: models.User, as: 'requestUser' }, { model: models.User, as: 'receiveUser' }] })
   return res.send(result)
@@ -730,14 +730,14 @@ app.delete("/api/friend/delete", async (req, res) => {
 })
 
 // 친구 리스트 조회
-app.get("/api/friend", async (req, res) => {
+app.get("/api/friend/friendList", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const result = await models.Friend.findAll({ where: { userId: req.user.userId, status: 'friend' }, include: { model: models.User, as: 'receiveUser' } })
   return res.send(result)
 })
 
 // 차단 리스트 조회
-app.get("/api/blockedUser", async (req, res) => {
+app.get("/api/friend/blockList", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const result = await models.Friend.findAll({ where: { userId: req.user.userId, status: 'blocked' }, include: { model: models.User, as: 'receiveUser' } })
   return res.send(result)
