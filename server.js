@@ -490,11 +490,11 @@ app.get("/api/post/list", async (req, res) => {
 
   let startPage, lastPage, totalPage, totalCount, result
   if (mbti == 'null') {
-    totalCount = await models.Post.count()
+    totalCount = await models.Post.count({ where: { status: 'ok' } })
     result = await models.Post.findAll({ where: { status: 'ok' }, offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [[sort, order]] })
   }
   else {
-    totalCount = await models.Post.count({ where: { category: mbti } })
+    totalCount = await models.Post.count({ where: { status: 'ok', category: mbti } })
     result = await models.Post.findAll({ where: { status: 'ok' }, offset: (parseInt(page) - 1) * size, limit: parseInt(size), where: { category: mbti }, include: [{ model: models.User }], order: [[sort, order]] })
   }
 
@@ -785,14 +785,11 @@ app.put("/api/report/post/:reportId", async (req, res) => {
 app.put("/api/user/block", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const { postId, commentId, userId, blockDate } = req.body
-  console.log(req.query)
-  if (postId != null) {
-    await models.Post.update({ status: 'blocked' }, { where: { postId } })
-  }
-  if (commentId != null) {
-    await models.Comment.update({ status: 'blocked' }, { where: { commentId } })
-  }
-  const result = await models.User.update({ blockDate, status: 'blocked' }, { where: { userId } })
+
+  if (postId != null) await models.Post.update({ status: 'blocked' }, { where: { postId } })
+  if (commentId != null) await models.Comment.update({ status: 'blocked' }, { where: { commentId } })
+
+  const result = await models.User.update({ status: 'blocked', blockDate }, { where: { userId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
 })
@@ -904,7 +901,7 @@ app.put("/api/user/unblock", async (req, res) => {
 //채팅 요청
 app.get("/api/chat/request", async (req, res) => {
   const { targetId } = req.query;
-  console.log("targetId : ,", targetId)
+  console.log("targetId : ", targetId)
   if (!req.user) return res.send({ message: "noAuth" });
   const targetUser = await models.User.findByPk(targetId);
   if (targetUser.chatOption === 'friendOnly') {
@@ -954,25 +951,41 @@ io.engine.use(
   onlyForHandshake((req, res, next) => {
     if (req.user) next();
     else {
-      res.writeHead(401);
+      res.writeHead(200);
       res.end();
     }
   })
 );
 
 io.on("connection", (socket) => {
-  console.log("socket connected");
+  socket.on("login", () => {
+    console.log("로그인 유저 : ", socket.request.user.userId);
+    socket.join(socket.request.user.userId)
+  })
 
   socket.on("ask-join", async (data) => {
-    console.log("socket room 확인");
-    socket.join(data);
+    console.log("입장 유저 : ", socket.request.user.userId, "방 번호 : ", data);
+    socket.leave(socket.request.user.userId)
+    socket.join("r" + data);
   });
+
+  socket.on("leave", async (data) => {
+    console.log('나간 유저 : ', socket.request.user.userId, "방 번호 : ", data)
+    socket.join(socket.request.user.userId)
+    socket.leave("r" + data)
+  })
+
+  socket.on("logout", () => {
+    console.log("로그아웃 유저 : ", socket.request.user.userId);
+    socket.leave(socket.request.user.userId)
+  })
 
   socket.on("send-message", async (data) => {
     let user = socket.request.user;
     const result = await models.Message.create({ message: data.message, userId: user.userId, roomId: data.roomId });
     let newResult = { ...result.dataValues, User: { nickname: user.nickname } };
-    io.to(data.roomId).emit("send-message", newResult);
+    io.to("r" + data.roomId).emit("send-message", newResult);
+    io.to(data.targetId).emit("notification")
   });
 });
 
