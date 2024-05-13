@@ -27,7 +27,8 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       type: DataTypes.INTEGER
     },
-    message: DataTypes.STRING
+    message: DataTypes.STRING,
+    isRead : DataTypes.INTEGER
   }, {
     sequelize,
     modelName: 'Message',
