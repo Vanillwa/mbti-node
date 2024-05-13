@@ -38,8 +38,7 @@ router.get("/api/chat", async (req, res) => {
 router.get("/api/chat/:roomId", async (req, res) => {
   const { roomId } = req.params;
   const roomInfo = await models.ChatRoom.findByPk(roomId);
-  const messageList = await models.Message.findAll({ where: { roomId }, include: [{model : models.User, as : 'sendUser'},{ model: models.User, as : 'receiveUser' }], order: [["createdAt", "DESC"]] });
-  console.log(messageList)
+  const messageList = await models.Message.findAll({ where: { roomId }, include: [{model : models.User, as : 'sendUser'},{ model: models.User, as : 'receiveUser' }], order: [["createdAt", "ASC"]] });
   return res.send({ roomInfo, messageList });
 });
 

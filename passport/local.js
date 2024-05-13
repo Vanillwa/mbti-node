@@ -10,7 +10,7 @@ module.exports = () => {
 			if (!result) return cb(null, false, { message: "NoExist" });
 			if (result.status === 'blocked') {
 				const now = new Date()
-				if (now.getDate() < result.blockDate) {
+				if (now > result.blockDate) {
 					await models.User.update({ status: 'ok', blockDate: null }, { where: { userId: result.userId } })
 				} else {
 					return cb(null, false, { message: "blocked", blockDate: result.blockDate });

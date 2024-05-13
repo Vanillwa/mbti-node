@@ -99,14 +99,15 @@ io.engine.use(
 
 io.on("connection", (socket) => {
   console.log('socket connected')
+
+  // 로그인 하면 채팅 알림을 받을 수 있게 socket join
   socket.on("login", () => {
-    console.log("로그인 유저 : ", socket.request.user.userId);
     socket.join(socket.request.user.userId)
   })
 
+  // 채팅방 입장 socket join
   socket.on("join", async (roomId) => {
     const userId = socket.request.user.userId
-    console.log(`${userId} 유저가 ${roomId} 방 입장`)
     socket.leave(userId)
     const roomInfo = await models.ChatRoom.findByPk(roomId)
     const targetId = (roomInfo.userId1 == userId) ? roomInfo.userId2 : roomInfo.userId1
@@ -115,32 +116,35 @@ io.on("connection", (socket) => {
 
     let userCount = io.sockets.adapter.rooms.get("r" + roomId).size // 상대방도 방에 들어와 있는 경우 상대방 화면도 업데이트 해줌
     if (userCount === 2) {
-      const messages = await models.Message.findAll({ where: { roomId }, include: [{ model: models.User, as : 'sendUser' },{ model: models.User, as : 'receiveUser' }], order: [["createdAt", "DESC"]] })
+      const messages = await models.Message.findAll({ where: { roomId }, include: [{ model: models.User, as: 'sendUser' }, { model: models.User, as: 'receiveUser' }], order: [["createdAt", "ASC"]] })
       io.to("r" + roomId).emit("userJoined", { messages, targetId })
     }
   });
 
+  // 채팅방 퇴실 socket leave
   socket.on("leave", (roomId) => {
-    console.log(`${socket.request.user.userId} 유저가 나감`)
     socket.leave("r" + roomId)
     socket.join(socket.request.user.userId)
   })
 
+  // 로그아웃 socket leave
   socket.on("logout", () => {
-    console.log("로그아웃 유저 : ", socket.request.user.userId);
     socket.leave(socket.request.user.userId)
   })
 
+  // 메세지 입력
   socket.on("sendMessage", async (data) => {
     let user = socket.request.user;
     let userCount = io.sockets.adapter.rooms.get("r" + data.roomId).size
-    console.log("유저 수 : ", userCount)
     let result
+
+    // 채팅방에 나 혼자면 채팅 안읽음 처리
     if (userCount == 1) result = await models.Message.create({ message: data.message, userId: user.userId, targetId: data.targetId, roomId: data.roomId, isRead: 0 });
     else result = await models.Message.create({ message: data.message, userId: user.userId, targetId: data.targetId, roomId: data.roomId, isRead: 1 });
+
     let newResult = { ...result.dataValues, sendUser: { nickname: user.nickname, profileImage: user.profileImage } };
     io.to("r" + data.roomId).emit("sendMessage", newResult);
-    io.to(data.targetId).emit("notification")
+    io.to(data.targetId).emit("notification", newResult)
   });
 });
 
