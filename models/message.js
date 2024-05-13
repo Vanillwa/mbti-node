@@ -16,7 +16,13 @@ module.exports = (sequelize, DataTypes) => {
       })
       this.belongsTo(models.User,{
         foreignKey : 'userId',
-        targetKey : 'userId'
+        targetKey : 'userId',
+        as : 'sendUser'
+      })
+      this.belongsTo(models.User,{
+        foreignKey : 'targetId',
+        targetKey : 'userId',
+        as : 'receiveUser'
       })
     }
   }

@@ -111,8 +111,13 @@ io.on("connection", (socket) => {
     const roomInfo = await models.ChatRoom.findByPk(roomId)
     const targetId = (roomInfo.userId1 == userId) ? roomInfo.userId2 : roomInfo.userId1
     await models.Message.update({ isRead: 1 }, { where: { roomId, userId: targetId, isRead: 0 } }) // 사용자가 채팅방에 입장하면 상대방이 보냈던 채팅들 읽음 처리
-    io.to("r" + roomId).emit("userJoined")
     socket.join("r" + roomId);
+
+    let userCount = io.sockets.adapter.rooms.get("r" + roomId).size // 상대방도 방에 들어와 있는 경우 상대방 화면도 업데이트 해줌
+    if (userCount === 2) {
+      const messages = await models.Message.findAll({ where: { roomId }, include: [{ model: models.User, as : 'sendUser' },{ model: models.User, as : 'receiveUser' }], order: [["createdAt", "DESC"]] })
+      io.to("r" + roomId).emit("userJoined", { messages, targetId })
+    }
   });
 
   socket.on("leave", (roomId) => {
@@ -126,15 +131,15 @@ io.on("connection", (socket) => {
     socket.leave(socket.request.user.userId)
   })
 
-  socket.on("send-message", async (data) => {
+  socket.on("sendMessage", async (data) => {
     let user = socket.request.user;
     let userCount = io.sockets.adapter.rooms.get("r" + data.roomId).size
     console.log("유저 수 : ", userCount)
     let result
-    if (userCount == 1) result = await models.Message.create({ message: data.message, userId: user.userId, roomId: data.roomId, isRead: 0 });
-    else result = await models.Message.create({ message: data.message, userId: user.userId, roomId: data.roomId, isRead: 1 });
-    let newResult = { ...result.dataValues, User: { nickname: user.nickname } };
-    io.to("r" + data.roomId).emit("send-message", newResult);
+    if (userCount == 1) result = await models.Message.create({ message: data.message, userId: user.userId, targetId: data.targetId, roomId: data.roomId, isRead: 0 });
+    else result = await models.Message.create({ message: data.message, userId: user.userId, targetId: data.targetId, roomId: data.roomId, isRead: 1 });
+    let newResult = { ...result.dataValues, sendUser: { nickname: user.nickname, profileImage: user.profileImage } };
+    io.to("r" + data.roomId).emit("sendMessage", newResult);
     io.to(data.targetId).emit("notification")
   });
 });
