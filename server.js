@@ -144,7 +144,15 @@ io.on("connection", (socket) => {
 
     let newResult = { ...result.dataValues, sendUser: { nickname: user.nickname, profileImage: user.profileImage } };
     io.to("r" + data.roomId).emit("sendMessage", newResult);
+    let now = new Date()
+    let old = socket.request?.lastMessageDate
+    if (old != null) {
+      let timeDiff = now.getTime() - old.getTime()
+      if(timeDiff <= 2500) return
+    }
+
     io.to(data.targetId).emit("notification", newResult)
+    socket.request.lastMessageDate = new Date()
   });
 });
 

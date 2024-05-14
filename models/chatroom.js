@@ -16,11 +16,13 @@ module.exports = (sequelize, DataTypes) => {
       })
       this.belongsTo(models.User,{
         foreignKey : 'userId1',
-        targetKey : 'userId'
+        targetKey : 'userId',
+        as : 'user1'
       })
       this.belongsTo(models.User,{
         foreignKey : 'userId2',
-        targetKey : 'userId'
+        targetKey : 'userId',
+        as : 'user2'
       })
     }
   }

@@ -88,9 +88,28 @@ router.post("/api/chatroom/report", async (req, res) => {
 // 채팅방 신고 내역 조회 (관리자)
 router.get("/api/report/chatroom", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.ChatRoomReport.findAll({ where: { status: 'pending' }, include: [{ model: models.ChatRoom , include: [{ model: models.User, as : 'user1' },{ model: models.User, as : 'user2' }] }, { model: models.User }] })
+  const result = await models.ChatRoomReport.findAll({ where: { status: 'pending' }, include: [{ model: models.ChatRoom, include: [{ model: models.User, as: 'user1' }, { model: models.User, as: 'user2' }] }, { model: models.User }] })
   return res.send(result)
 })
+
+// 채팅방 신고 내역 조회 - 메세지 (관리자)
+router.get("/api/report/chatroom/message", async (req, res) => {
+  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const { roomId } = req.query
+  const result = await models.Message.findAll({ where: { roomId }, include : [{model : models.User}], limit : 50 })
+  return res.send(result)
+})
+
+// 채팅방 신고 내역 처리 (관리자)
+router.put("/api/report/chatroom/:reportId", async (req, res) => {
+  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const { reportId } = req.params
+  console.log("id : ", reportId)
+  const result = await models.ChatRoomReport.update({ status: 'done' }, { where: { reportId } })
+  if (result > 0) return res.send({ message: 'success' })
+  return res.send({ message: 'fail' })
+})
+
 
 // 사용자 리스트 조회
 router.get("/api/user", async (req, res) => {
@@ -161,7 +180,7 @@ router.put("/api/user/unblock", async (req, res) => {
   const { userId } = req.query
   console.log("userId : ", userId)
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.User.update({ status: "ok" }, { where: { userId } })
+  const result = await models.User.update({ status: "ok", blockDate : null }, { where: { userId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
 })

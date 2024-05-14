@@ -32,10 +32,6 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "userId2",
         as : 'user2'
       })
-      this.hasMany(models.ChatRoom, {
-        sourceKey: "userId",
-        foreignKey: "userId2",
-      })
       this.hasMany(models.Message, {
         sourceKey: "userId",
         foreignKey: "userId",
