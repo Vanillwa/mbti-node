@@ -31,6 +31,7 @@ router.get("/api/chat/request", async (req, res) => {
 router.get("/api/chat", async (req, res) => {
   if (!req.user) return res.send({ message: "noAuth" });
   const result = await models.ChatRoom.findAll({ where: { [Op.or]: [{ userId1: req.user.userId }, { userId2: req.user.userId }] }, include: [{ model: models.User, as: 'user1' }, { model: models.User, as: 'user2' }] });
+  const unRead = await models.Message.count({ where: { isRead: 0, targetId: req.user.userId } })
   return res.send(result);
 });
 

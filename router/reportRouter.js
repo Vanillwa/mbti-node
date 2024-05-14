@@ -88,7 +88,13 @@ router.post("/api/chatroom/report", async (req, res) => {
 // 채팅방 신고 내역 조회 (관리자)
 router.get("/api/report/chatroom", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.ChatRoomReport.findAll({ where: { status: 'pending' }, include: [{ model: models.ChatRoom, include: [{ model: models.User, as: 'user1' }, { model: models.User, as: 'user2' }] }, { model: models.User }] })
+  const result = await models.sequelize.query(`SELECT
+  cr.*,
+  c.*
+FROM chatroomreports AS cr
+INNER JOIN messages AS c ON cr.roomId = c.roomId LIMIT 5;`)
+  //const result = await models.ChatRoomReport.findAll({ where: { status: 'pending' }, include: [{ model: models.ChatRoom, include: [{ model: models.User, as: 'user1' }, { model: models.User, as: 'user2' }] }, { model: models.User }] })
+  console.log(result)
   return res.send(result)
 })
 
@@ -96,7 +102,7 @@ router.get("/api/report/chatroom", async (req, res) => {
 router.get("/api/report/chatroom/message", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const { roomId } = req.query
-  const result = await models.Message.findAll({ where: { roomId }, include : [{model : models.User}], limit : 50 })
+  const result = await models.Message.findAll({ where: { roomId }, include: [{ model: models.User, as: 'sendUser' }], limit: 50 })
   return res.send(result)
 })
 
@@ -180,7 +186,7 @@ router.put("/api/user/unblock", async (req, res) => {
   const { userId } = req.query
   console.log("userId : ", userId)
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.User.update({ status: "ok", blockDate : null }, { where: { userId } })
+  const result = await models.User.update({ status: "ok", blockDate: null }, { where: { userId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
 })
