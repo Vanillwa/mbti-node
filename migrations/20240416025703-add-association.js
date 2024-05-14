@@ -158,7 +158,7 @@ module.exports = {
       }
     )
     await queryInterface.addColumn(
-      'MessageReports', 
+      'ChatRoomReports', 
       'userId', 
       {
         type: Sequelize.INTEGER,
@@ -256,14 +256,14 @@ module.exports = {
       }
     )
     await queryInterface.addColumn(
-      'MessageReports', 
-      'messageId', 
+      'ChatRoomReports', 
+      'roomId', 
       {
         type: Sequelize.INTEGER,
         allowNull: true,
         references: {
-          model: 'Messages', // Users 모델에서
-          key: 'messageId', // 그 아이디 값을 참고합니다.
+          model: 'ChatRooms', // Users 모델에서
+          key: 'roomId', // 그 아이디 값을 참고합니다.
         },
         onUpdate: 'CASCADE',
         onDelete: 'SET NULL',

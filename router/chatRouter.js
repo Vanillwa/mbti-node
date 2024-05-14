@@ -30,7 +30,7 @@ router.get("/api/chat/request", async (req, res) => {
 //채팅 리스트
 router.get("/api/chat", async (req, res) => {
   if (!req.user) return res.send({ message: "noAuth" });
-  const result = await models.ChatRoom.findAll({ where: { [Op.or]: [{ userId1: req.user.userId }, { userId2: req.user.userId }] } });
+  const result = await models.ChatRoom.findAll({ where: { [Op.or]: [{ userId1: req.user.userId }, { userId2: req.user.userId }] }, include: [{ model: models.User, as: 'user1' }, { model: models.User, as: 'user2' }] });
   return res.send(result);
 });
 
@@ -38,7 +38,7 @@ router.get("/api/chat", async (req, res) => {
 router.get("/api/chat/:roomId", async (req, res) => {
   const { roomId } = req.params;
   const roomInfo = await models.ChatRoom.findByPk(roomId);
-  const messageList = await models.Message.findAll({ where: { roomId }, include: [{model : models.User, as : 'sendUser'},{ model: models.User, as : 'receiveUser' }], order: [["createdAt", "ASC"]] });
+  const messageList = await models.Message.findAll({ where: { roomId }, include: [{ model: models.User, as: 'sendUser' }, { model: models.User, as: 'receiveUser' }], order: [["createdAt", "ASC"]] });
   return res.send({ roomInfo, messageList });
 });
 

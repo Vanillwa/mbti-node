@@ -25,6 +25,12 @@ module.exports = (sequelize, DataTypes) => {
       this.hasMany(models.ChatRoom, {
         sourceKey: "userId",
         foreignKey: "userId1",
+        as : 'user1'
+      })
+      this.hasMany(models.ChatRoom, {
+        sourceKey: "userId",
+        foreignKey: "userId2",
+        as : 'user2'
       })
       this.hasMany(models.ChatRoom, {
         sourceKey: "userId",
@@ -52,7 +58,7 @@ module.exports = (sequelize, DataTypes) => {
         sourceKey: "userId",
         foreignKey: "userId",
       })
-      this.hasMany(models.MessageReport, {
+      this.hasMany(models.ChatRoomReport, {
         sourceKey: "userId",
         foreignKey: "userId",
       })

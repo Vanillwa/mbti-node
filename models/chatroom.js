@@ -14,6 +14,14 @@ module.exports = (sequelize, DataTypes) => {
         sourceKey: "roomId",
         foreignKey: "roomId",
       })
+      this.belongsTo(models.User,{
+        foreignKey : 'userId1',
+        targetKey : 'userId'
+      })
+      this.belongsTo(models.User,{
+        foreignKey : 'userId2',
+        targetKey : 'userId'
+      })
     }
   }
   ChatRoom.init({

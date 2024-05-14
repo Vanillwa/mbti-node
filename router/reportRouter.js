@@ -73,6 +73,25 @@ router.put("/api/report/comment/:reportId", async (req, res) => {
   return res.send({ message: 'fail' })
 })
 
+// 채팅방 신고
+router.post("/api/chatroom/report", async (req, res) => {
+  if (!req.user) return res.send({ message: 'noAuth' })
+  let body = req.body
+  body.userId = req.user.userId
+  body.status = 'pending'
+  const check = await models.ChatRoomReport.findOne({ where: { roomId: body.roomId, userId: req.user.userId } })
+  if (check != null) return res.send({ message: 'duplicated' })
+  await models.ChatRoomReport.create(req.body)
+  return res.send({ message: 'success' })
+})
+
+// 채팅방 신고 내역 조회 (관리자)
+router.get("/api/report/chatroom", async (req, res) => {
+  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const result = await models.ChatRoomReport.findAll({ where: { status: 'pending' }, include: [{ model: models.ChatRoom , include: [{ model: models.User, as : 'user1' },{ model: models.User, as : 'user2' }] }, { model: models.User }] })
+  return res.send(result)
+})
+
 // 사용자 리스트 조회
 router.get("/api/user", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })

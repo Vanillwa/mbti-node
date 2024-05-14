@@ -3,17 +3,24 @@ const {
   Model
 } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
-  class MessageReport extends Model {
+  class ChatRoomReport extends Model {
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
      * The `models/index` file will call this method automatically.
      */
     static associate(models) {
-      // define association here
+      this.belongsTo(models.User,{
+        foreignKey : 'userId',
+        targetKey : 'userId'
+      }),
+      this.belongsTo(models.ChatRoom,{
+        foreignKey : 'roomId',
+        targetKey : 'roomId'
+      })
     }
   }
-  MessageReport.init({
+  ChatRoomReport.init({
     reportId: {
       allowNull: false,
       autoIncrement: true,
@@ -24,7 +31,7 @@ module.exports = (sequelize, DataTypes) => {
     status: DataTypes.STRING
   }, {
     sequelize,
-    modelName: 'MessageReport',
+    modelName: 'ChatRoomReport',
   });
-  return MessageReport;
+  return ChatRoomReport;
 };
