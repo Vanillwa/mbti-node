@@ -12,7 +12,13 @@ module.exports = (sequelize, DataTypes) => {
     static associate(models) {
       this.belongsTo(models.User,{
         foreignKey : 'userId',
-        targetKey : 'userId'
+        targetKey : 'userId',
+        as : 'reportUser'
+      }),
+      this.belongsTo(models.User,{
+        foreignKey : 'targetId',
+        targetKey : 'userId',
+        as : 'targetUser'
       }),
       this.belongsTo(models.ChatRoom,{
         foreignKey : 'roomId',

@@ -35,11 +35,11 @@ router.put("/api/report/post/:reportId", async (req, res) => {
 // 사용자 계정 정지 
 router.put("/api/user/block", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const { postId, commentId, userId, blockDate } = req.body
+  const { postId, commentId, roomId, userId, blockDate } = req.body
 
   if (postId != null) await models.Post.update({ status: 'blocked' }, { where: { postId } })
   if (commentId != null) await models.Comment.update({ status: 'blocked' }, { where: { commentId } })
-
+  if (roomId != null) await models.ChatRoom.update({ status: 'blocked' }, { where: { roomId } })
   const result = await models.User.update({ status: 'blocked', blockDate }, { where: { userId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
@@ -76,11 +76,19 @@ router.put("/api/report/comment/:reportId", async (req, res) => {
 // 채팅방 신고
 router.post("/api/chatroom/report", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
+  const { roomId } = req.body
+
+  const room = await models.ChatRoom.findByPk(roomId)
+  if (room == null) return res.send({ message: 'noExist' })
+
+  const check = await models.ChatRoomReport.findOne({ where: { roomId, userId: req.user.userId } })
+  if (check != null) return res.send({ message: 'duplicated' })
+
   let body = req.body
   body.userId = req.user.userId
   body.status = 'pending'
-  const check = await models.ChatRoomReport.findOne({ where: { roomId: body.roomId, userId: req.user.userId } })
-  if (check != null) return res.send({ message: 'duplicated' })
+  body.targetId = req.user.userId == room.userId1 ? room.userId2 : room.userId1
+  
   await models.ChatRoomReport.create(req.body)
   return res.send({ message: 'success' })
 })
@@ -88,12 +96,29 @@ router.post("/api/chatroom/report", async (req, res) => {
 // 채팅방 신고 내역 조회 (관리자)
 router.get("/api/report/chatroom", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.sequelize.query(`SELECT
-  cr.*,
-  c.*
-FROM chatroomreports AS cr
-INNER JOIN messages AS c ON cr.roomId = c.roomId LIMIT 5;`)
-  //const result = await models.ChatRoomReport.findAll({ where: { status: 'pending' }, include: [{ model: models.ChatRoom, include: [{ model: models.User, as: 'user1' }, { model: models.User, as: 'user2' }] }, { model: models.User }] })
+  const result = await models.sequelize.query(`select
+	crr.reportId,
+	crr.type,
+	crr.status,
+	crr.roomId,
+	json_object('userId', u.userId, 'nickname', u.nickname) as reportUser,
+	json_object('userId', t.userId, 'nickname', t.nickname) as targetUser,
+	json_arrayagg(
+		json_object('messageId', m.messageId,'message', m.message, 'userId', m.userId, 'nickname', u1.nickname, 'profileImage', u1.profileImage)
+	) as chat
+from
+	chatroomreports crr
+inner join chatrooms cr on
+	crr.roomId = cr.roomId
+inner join messages m on
+	cr.roomId = m.roomId
+inner join users u on
+	crr.userId = u.userId
+inner join users t on
+	crr.targetId = t.userId
+inner join users u1 on
+	m.userId = u1.userId
+	group by reportId`, { type: models.sequelize.QueryTypes.SELECT })
   console.log(result)
   return res.send(result)
 })
