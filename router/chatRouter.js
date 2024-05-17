@@ -32,8 +32,8 @@ router.get("/api/chat", async (req, res) => {
   if (!req.user) return res.send({ message: "noAuth" });
   const result = await models.sequelize.query(`SELECT
   cr.roomId,
-  json_object('userId', u1.userId, 'nickname', u1.nickname) as user1,
-  json_object('userId', u2.userId, 'nickname', u2.nickname) as user2,
+  json_object('userId', u1.userId, 'nickname', u1.nickname, 'profileImage', u1.profileImage) as user1,
+  json_object('userId', u2.userId, 'nickname', u2.nickname, 'profileImage', u2.profileImage) as user2,
   (
     SELECT COUNT(*)
     FROM messages m
@@ -49,6 +49,13 @@ router.get("/api/chat", async (req, res) => {
   	limit 1
   ) as recentMessage,
   (
+  	select m.createdAt
+  	from messages m
+  	where m.roomId = cr.roomId 
+  	order by m.createdAt desc
+  	limit 1
+  ) as recentMessageDate,
+  (
   	select u.nickname
   	from messages m
   	inner join users u 
@@ -63,7 +70,9 @@ router.get("/api/chat", async (req, res) => {
   inner join users u2
   on cr.userId2 = u2.userId
   where (userId1 = ${req.user.userId} or userId2 = ${req.user.userId})
-    and cr.status = 'ok'`,  { type: models.sequelize.QueryTypes.SELECT })
+    and cr.status = 'ok'
+    order by recentMessageDate desc`, { type: models.sequelize.QueryTypes.SELECT })
+  console.log(result);
   return res.send(result);
 });
 
@@ -74,5 +83,12 @@ router.get("/api/chat/:roomId", async (req, res) => {
   const messageList = await models.Message.findAll({ where: { roomId }, include: [{ model: models.User, as: 'sendUser' }, { model: models.User, as: 'receiveUser' }], order: [["createdAt", "ASC"]] });
   return res.send({ roomInfo, messageList });
 });
+
+// 채팅 알림
+router.get("/api/chat/alert", async(req,res)=>{
+  if (!req.user) return res.send({ message: "noAuth" });
+  const result = await models.Message.count({where : {targetId : req.user.userId, isRead : 0}})
+  return res.send(result)
+})
 
 module.exports = router

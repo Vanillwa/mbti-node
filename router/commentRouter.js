@@ -11,7 +11,7 @@ router.get("/api/comment", async (req, res) => {
   let startPage, lastPage, totalPage, totalCount, commentList
 
   totalCount = await models.Comment.count({ where: { status: "ok " } })
-  commentList = await models.Comment.findAll({ where: { postId, status: "ok" }, offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [['createdAt', order]] })
+  commentList = await models.Comment.findAll({ where: { postId }, offset: (parseInt(page) - 1) * size, limit: parseInt(size), include: [{ model: models.User }], order: [['createdAt', order]] })
 
   totalPage = math.ceil(totalCount / size)
 

@@ -77,6 +77,8 @@ app.use('/', require('./router/friendRouter'))
 app.use('/', require('./router/reportRouter'))
 app.use('/', require('./router/chatRouter'))
 
+
+
 function onlyForHandshake(middleware) {
   return (req, res, next) => {
     const isHandshake = req._query.sid === undefined;
@@ -154,6 +156,11 @@ io.on("connection", (socket) => {
     io.to(data.targetId).emit("notification", newResult)
     socket.request.lastMessageDate = new Date()
   });
+
+  socket.on("blockUser", async(userId)=>{
+    console.log("로그아웃 강제 요청 : ", userId)
+    io.to(userId).emit("uBlocked")
+  })
 });
 
 app.get("*", (req, res) => {

@@ -37,7 +37,7 @@ router.put("/api/report/post/:reportId", async (req, res) => {
 router.put("/api/user/block", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const { postId, commentId, roomId, userId, blockDate } = req.body
-
+  console.log(req.body)
   if (postId != null) await models.Post.update({ status: 'blocked' }, { where: { postId } })
   if (commentId != null) await models.Comment.update({ status: 'blocked' }, { where: { commentId } })
   if (roomId != null) await models.ChatRoom.update({ status: 'blocked' }, { where: { roomId } })
@@ -70,8 +70,8 @@ router.put("/api/report/comment/:reportId", async (req, res) => {
   const { reportId } = req.params
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const check = await models.CommentReport.findByPk(reportId)
-  if(check == null) return res.send({message : 'noExist'})
-  const result = await models.CommentReport.update({ status: 'done' }, { where: { commentId : check.commentId } })
+  if (check == null) return res.send({ message: 'noExist' })
+  const result = await models.CommentReport.update({ status: 'done' }, { where: { commentId: check.commentId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
 })
@@ -93,6 +93,7 @@ router.post("/api/chatroom/report", async (req, res) => {
   body.targetId = req.user.userId == room.userId1 ? room.userId2 : room.userId1
 
   await models.ChatRoomReport.create(req.body)
+  await models.ChatRoom.update({ status: 'reported' }, { where: { roomId } })
   return res.send({ message: 'success' })
 })
 
@@ -121,6 +122,7 @@ inner join users t on
 	crr.targetId = t.userId
 inner join users u1 on
 	m.userId = u1.userId
+where crr.status = 'pending'
 	group by reportId`, { type: models.sequelize.QueryTypes.SELECT })
   console.log(result)
   return res.send(result)
@@ -130,7 +132,10 @@ inner join users u1 on
 router.put("/api/report/chatroom/:reportId", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const { reportId } = req.params
-  console.log("id : ", reportId)
+  const { targetId, roomId } = req.body
+  console.log(req.body)
+  const check = await models.User.findByPk(targetId)
+  if (check.status !== 'blocked') await models.ChatRoom.update({ status: 'deleted' }, { where: { roomId } })
   const result = await models.ChatRoomReport.update({ status: 'done' }, { where: { reportId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
