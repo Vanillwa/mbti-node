@@ -25,9 +25,10 @@ router.get("/api/report/post", async (req, res) => {
 // 게시글 신고 내역 처리 (관리자)
 router.put("/api/report/post/:reportId", async (req, res) => {
   const { reportId } = req.params
-  console.log("reportId : ", reportId)
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.PostReport.update({ status: 'done' }, { where: { reportId } })
+  const check = await models.PostReport.findByPk(reportId)
+  if (check == null) return res.send({ message: 'noExist' })
+  const result = await models.PostReport.update({ status: 'done' }, { where: { postId: check.postId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
 })
@@ -68,7 +69,9 @@ router.get("/api/report/comment", async (req, res) => {
 router.put("/api/report/comment/:reportId", async (req, res) => {
   const { reportId } = req.params
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.CommentReport.update({ status: 'done' }, { where: { reportId } })
+  const check = await models.CommentReport.findByPk(reportId)
+  if(check == null) return res.send({message : 'noExist'})
+  const result = await models.CommentReport.update({ status: 'done' }, { where: { commentId : check.commentId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
 })
@@ -88,7 +91,7 @@ router.post("/api/chatroom/report", async (req, res) => {
   body.userId = req.user.userId
   body.status = 'pending'
   body.targetId = req.user.userId == room.userId1 ? room.userId2 : room.userId1
-  
+
   await models.ChatRoomReport.create(req.body)
   return res.send({ message: 'success' })
 })
@@ -123,14 +126,6 @@ inner join users u1 on
   return res.send(result)
 })
 
-// 채팅방 신고 내역 조회 - 메세지 (관리자)
-router.get("/api/report/chatroom/message", async (req, res) => {
-  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const { roomId } = req.query
-  const result = await models.Message.findAll({ where: { roomId }, include: [{ model: models.User, as: 'sendUser' }], limit: 50 })
-  return res.send(result)
-})
-
 // 채팅방 신고 내역 처리 (관리자)
 router.put("/api/report/chatroom/:reportId", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
@@ -140,7 +135,6 @@ router.put("/api/report/chatroom/:reportId", async (req, res) => {
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
 })
-
 
 // 사용자 리스트 조회
 router.get("/api/user", async (req, res) => {

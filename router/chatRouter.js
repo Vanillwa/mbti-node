@@ -30,8 +30,40 @@ router.get("/api/chat/request", async (req, res) => {
 //채팅 리스트
 router.get("/api/chat", async (req, res) => {
   if (!req.user) return res.send({ message: "noAuth" });
-  const result = await models.ChatRoom.findAll({ where: { [Op.or]: [{ userId1: req.user.userId }, { userId2: req.user.userId }] }, include: [{ model: models.User, as: 'user1' }, { model: models.User, as: 'user2' }] });
-  const unRead = await models.Message.count({ where: { isRead: 0, targetId: req.user.userId } })
+  const result = await models.sequelize.query(`SELECT
+  cr.roomId,
+  json_object('userId', u1.userId, 'nickname', u1.nickname) as user1,
+  json_object('userId', u2.userId, 'nickname', u2.nickname) as user2,
+  (
+    SELECT COUNT(*)
+    FROM messages m
+    WHERE m.roomId = cr.roomId
+    	AND m.isRead = 0
+    	and m.targetId = ${req.user.userId}
+  ) AS unreadCount,
+  (
+  	select m.message
+  	from messages m
+  	where m.roomId = cr.roomId 
+  	order by m.createdAt desc
+  	limit 1
+  ) as recentMessage,
+  (
+  	select u.nickname
+  	from messages m
+  	inner join users u 
+  	on u.userId = m.userId
+  	where m.roomId = cr.roomId 
+  	order by m.createdAt desc
+  	limit 1
+  ) as recentMessageUserNickname
+  FROM chatrooms cr
+  inner join users u1
+  on cr.userId1 = u1.userId
+  inner join users u2
+  on cr.userId2 = u2.userId
+  where (userId1 = ${req.user.userId} or userId2 = ${req.user.userId})
+    and cr.status = 'ok'`,  { type: models.sequelize.QueryTypes.SELECT })
   return res.send(result);
 });
 
