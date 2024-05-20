@@ -76,7 +76,7 @@ app.use('/', require('./router/commentRouter'))
 app.use('/', require('./router/friendRouter'))
 app.use('/', require('./router/reportRouter'))
 app.use('/', require('./router/chatRouter'))
-
+app.use('/', require('./router/searchRouter'))
 
 
 function onlyForHandshake(middleware) {

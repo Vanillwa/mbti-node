@@ -75,7 +75,6 @@ router.get("/api/chat", async (req, res) => {
   where (userId1 = ${req.user.userId} or userId2 = ${req.user.userId})
     and cr.status = 'ok'
     order by recentMessageDate desc`, { type: models.sequelize.QueryTypes.SELECT })
-  console.log(result);
   return res.send(result);
 });
 

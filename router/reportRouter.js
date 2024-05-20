@@ -1,7 +1,7 @@
 const router = require('express').Router()
 const { Op } = require('sequelize');
 const models = require("../models");
-const math = require('mathjs')
+const math = require('mathjs');
 
 // 게시글 신고
 router.post("/api/post/report", async (req, res) => {
@@ -18,8 +18,34 @@ router.post("/api/post/report", async (req, res) => {
 // 게시글 신고 내역 조회 (관리자)
 router.get("/api/report/post", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.PostReport.findAll({ where: { status: 'pending' }, include: [{ model: models.Post, include: [{ model: models.User }] }, { model: models.User }] })
-  return res.send(result)
+  const page = parseInt(req.query.page)
+  let startPage, lastPage, totalPage, totalCount, result, limit = 5
+  totalCount = await models.PostReport.count({ where: { status: 'pending' } })
+  result = await models.PostReport.findAll({ where: { status: 'pending' }, offset: (page - 1) * limit, limit, include: [{ model: models.Post, include: [{ model: models.User }] }, { model: models.User }] })
+
+  totalPage = math.ceil(totalCount / limit)
+
+  if (totalPage <= 5) {
+    startPage = 1;
+    lastPage = totalPage;
+  } else {
+    if (page < 3) {
+      startPage = 1;
+      lastPage = 5;
+    } else if (page > totalPage - 2) {
+      startPage = totalPage - 4;
+      lastPage = totalPage;
+    } else {
+      startPage = page - 2;
+      lastPage = page + 2;
+    }
+  }
+  let paging = {
+    startPage,
+    lastPage,
+    totalPage
+  }
+  return res.send({ list: result, paging })
 })
 
 // 게시글 신고 내역 처리 (관리자)
@@ -29,19 +55,6 @@ router.put("/api/report/post/:reportId", async (req, res) => {
   const check = await models.PostReport.findByPk(reportId)
   if (check == null) return res.send({ message: 'noExist' })
   const result = await models.PostReport.update({ status: 'done' }, { where: { postId: check.postId } })
-  if (result > 0) return res.send({ message: 'success' })
-  return res.send({ message: 'fail' })
-})
-
-// 사용자 계정 정지 
-router.put("/api/user/block", async (req, res) => {
-  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const { postId, commentId, roomId, userId, blockDate } = req.body
-  console.log(req.body)
-  if (postId != null) await models.Post.update({ status: 'blocked' }, { where: { postId } })
-  if (commentId != null) await models.Comment.update({ status: 'blocked' }, { where: { commentId } })
-  if (roomId != null) await models.ChatRoom.update({ status: 'blocked' }, { where: { roomId } })
-  const result = await models.User.update({ status: 'blocked', blockDate }, { where: { userId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
 })
@@ -61,8 +74,34 @@ router.post("/api/comment/report", async (req, res) => {
 // 댓글 신고 내역 조회 (관리자)
 router.get("/api/report/comment", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
-  const result = await models.CommentReport.findAll({ where: { status: 'pending' }, include: [{ model: models.Comment, include: [{ model: models.User }] }, { model: models.User }] })
-  return res.send(result)
+  const page = parseInt(req.query.page)
+  let startPage, lastPage, totalPage, totalCount, result, limit = 5
+
+  totalCount = await models.CommentReport.count({ where: { status: "pending" } })
+  result = await models.CommentReport.findAll({ where: { status: 'pending' }, offset: (page - 1) * limit, limit, include: [{ model: models.Comment, include: [{ model: models.User }] }, { model: models.User }] })
+  totalPage = math.ceil(totalCount / limit)
+
+  if (totalPage <= 5) {
+    startPage = 1;
+    lastPage = totalPage;
+  } else {
+    if (page < 3) {
+      startPage = 1;
+      lastPage = 5;
+    } else if (page > totalPage - 2) {
+      startPage = totalPage - 4;
+      lastPage = totalPage;
+    } else {
+      startPage = page - 2;
+      lastPage = page + 2;
+    }
+  }
+  let paging = {
+    startPage,
+    lastPage,
+    totalPage
+  }
+  return res.send({ list: result, paging })
 })
 
 // 댓글 신고 내역 처리 (관리자)
@@ -100,6 +139,10 @@ router.post("/api/chatroom/report", async (req, res) => {
 // 채팅방 신고 내역 조회 (관리자)
 router.get("/api/report/chatroom", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const page = parseInt(req.query.page)
+  console.log("page : ",page)
+  let startPage, lastPage, totalPage, totalCount, limit = 5
+  totalCount = await models.ChatRoomReport.count({ where: { status: 'pending' } })
   const result = await models.sequelize.query(`select
 	crr.reportId,
 	crr.type,
@@ -123,9 +166,33 @@ inner join users t on
 inner join users u1 on
 	m.userId = u1.userId
 where crr.status = 'pending'
-	group by reportId`, { type: models.sequelize.QueryTypes.SELECT })
+	group by reportId
+  limit ${limit} offset ${(page - 1) * limit}`, { type: models.sequelize.QueryTypes.SELECT })
+
+  totalPage = math.ceil(totalCount / limit)
+
+  if (totalPage <= 5) {
+    startPage = 1;
+    lastPage = totalPage;
+  } else {
+    if (page < 3) {
+      startPage = 1;
+      lastPage = 5;
+    } else if (page > totalPage - 2) {
+      startPage = totalPage - 4;
+      lastPage = totalPage;
+    } else {
+      startPage = page - 2;
+      lastPage = page + 2;
+    }
+  }
+  let paging = {
+    startPage,
+    lastPage,
+    totalPage
+  }
   console.log(result)
-  return res.send(result)
+  return res.send({ list: result, paging })
 })
 
 // 채팅방 신고 내역 처리 (관리자)
@@ -203,6 +270,18 @@ router.get("/api/user", async (req, res) => {
     totalPage
   }
   return res.send({ result, paging })
+})
+
+// 사용자 계정 정지 
+router.put("/api/user/block", async (req, res) => {
+  if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
+  const { postId, commentId, roomId, userId, blockDate } = req.body
+  if (postId != null) await models.Post.update({ status: 'blocked' }, { where: { postId } })
+  if (commentId != null) await models.Comment.update({ status: 'blocked' }, { where: { commentId } })
+  if (roomId != null) await models.ChatRoom.update({ status: 'blocked' }, { where: { roomId } })
+  const result = await models.User.update({ status: 'blocked', blockDate }, { where: { userId } })
+  if (result > 0) return res.send({ message: 'success' })
+  return res.send({ message: 'fail' })
 })
 
 // 사용자 계정 차단 해제
