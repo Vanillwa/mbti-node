@@ -22,7 +22,10 @@ router.get("/api/chat/request", async (req, res) => {
     userId2 = req.user.userId
   }
   const check = await models.ChatRoom.findOne({ where: { userId1, userId2 } })
-  if (check != null) return res.send({ message: 'duplicated', roomId: check.roomId })
+  if (check != null){
+    if(check.status === 'reported')  return res.send({ message: 'reported'})
+    else return res.send({ message: 'duplicated', roomId: check.roomId })
+  } 
   const result = await models.ChatRoom.create({ title: `${req.user.nickname}님과 ${targetUser.nickname}님의 채팅방`, userId1, userId2 });
   return res.send({ message: "success", roomId: result.roomId });
 });
