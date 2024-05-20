@@ -81,7 +81,14 @@ router.delete("/api/friend/delete", async (req, res) => {
 // 친구 리스트 조회
 router.get("/api/friend/friendList", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  const result = await models.Friend.findAll({ where: { userId: req.user.userId, status: 'friend' }, include: { model: models.User, as: 'receiveUser' } })
+  const { keyword } = req.query
+  let result
+  if (keyword == null) {
+    result = await models.Friend.findAll({ where: { userId: req.user.userId, status: 'friend' }, include: { model: models.User, as: 'receiveUser' } })
+  } else {
+    result = await models.Friend.findAll({ where: { userId: req.user.userId, status: 'friend' }, include: { model: models.User, as: 'receiveUser', where: { nickname: { [Op.like]: `%${keyword}%` } } } })
+  }
+
   return res.send(result)
 })
 
