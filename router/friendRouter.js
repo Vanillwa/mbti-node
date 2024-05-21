@@ -1,4 +1,5 @@
 const router = require('express').Router()
+const { Op } = require('sequelize');
 const models = require("../models");
 const math = require('mathjs')
 
@@ -23,8 +24,36 @@ router.get("/api/friend/request", async (req, res) => {
 // 친구 요청 리스트 조회
 router.get("/api/friend/requestList", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  const result = await models.Friend.findAll({ where: { targetId: req.user.userId, status: 'pending' }, include: [{ model: models.User, as: 'requestUser' }, { model: models.User, as: 'receiveUser' }] })
-  return res.send(result)
+  const page = parseInt(req.query.page) || 1
+  const size = parseInt(req.query.size) || 5
+
+  let startPage, lastPage, totalPage, totalCount, result
+  result = await models.Friend.findAll({ where: { targetId: req.user.userId, status: 'pending' }, include: [{ model: models.User, as: 'requestUser' }, { model: models.User, as: 'receiveUser' }] })
+  totalCount = await models.Friend.count({ where: { targetId: req.user.userId, status: 'pending' } })
+
+  totalPage = math.ceil(totalCount / size)
+
+  if (totalPage <= 5) {
+    startPage = 1;
+    lastPage = totalPage;
+  } else {
+    if (page < 3) {
+      startPage = 1;
+      lastPage = 5;
+    } else if (page > totalPage - 2) {
+      startPage = totalPage - 4;
+      lastPage = totalPage;
+    } else {
+      startPage = page - 2;
+      lastPage = page + 2;
+    }
+  }
+  let paging = {
+    startPage,
+    lastPage,
+    totalPage
+  }
+  return res.send({ result, paging })
 })
 
 // 친구 요청 수락
@@ -117,14 +146,42 @@ router.get("/api/friend/friendList", async (req, res) => {
     totalPage
   }
 
-  return res.send({result, paging})
+  return res.send({ result, paging })
 })
 
 // 차단 리스트 조회
 router.get("/api/friend/blockList", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
-  const result = await models.Friend.findAll({ where: { userId: req.user.userId, status: 'blocked' }, include: { model: models.User, as: 'receiveUser' } })
-  return res.send(result)
+  const page = parseInt(req.query.page) || 1
+  const size = parseInt(req.query.size) || 5
+
+  let startPage, lastPage, totalPage, totalCount, result
+  result = await models.Friend.findAll({ where: { userId: req.user.userId, status: 'blocked' }, include: { model: models.User, as: 'receiveUser' } })
+  totalCount = await models.Friend.count({ where: { userId: req.user.userId, status: 'blocked' } })
+  totalPage = math.ceil(totalCount / size)
+
+  if (totalPage <= 5) {
+    startPage = 1;
+    lastPage = totalPage;
+  } else {
+    if (page < 3) {
+      startPage = 1;
+      lastPage = 5;
+    } else if (page > totalPage - 2) {
+      startPage = totalPage - 4;
+      lastPage = totalPage;
+    } else {
+      startPage = page - 2;
+      lastPage = page + 2;
+    }
+  }
+  let paging = {
+    startPage,
+    lastPage,
+    totalPage
+  }
+
+  return res.send({ result, paging })
 })
 
 // 차단 해제
