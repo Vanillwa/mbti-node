@@ -6,10 +6,8 @@ const math = require('mathjs')
 router.get("/api/search", async (req, res) => {
   const page = parseInt(req.query.page) || 1
   const size = parseInt(req.query.size) || 5
-
   const { keyword } = req.query
-  console.log("keyword : ", keyword)
-
+  
   let startPage, lastPage, totalPage, totalCount
 
   const userList = await models.User.findAll({ where: { nickname: { [Op.like]: `%${keyword}%` } } })
@@ -25,7 +23,6 @@ router.get("/api/search", async (req, res) => {
   })
 
   totalPage = math.ceil(totalCount / size)
-  console.log(size)
 
   if (totalPage <= 5) {
     startPage = 1;
