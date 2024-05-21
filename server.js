@@ -150,16 +150,20 @@ io.on("connection", (socket) => {
     let old = socket.request?.lastMessageDate
     if (old != null) {
       let timeDiff = now.getTime() - old.getTime()
-      if(timeDiff <= 2500) return
+      if (timeDiff <= 2500) return
     }
 
     io.to(data.targetId).emit("notification", newResult)
     socket.request.lastMessageDate = new Date()
   });
 
-  socket.on("blockUser", async(userId)=>{
+  socket.on("blockUser", async (userId) => {
     console.log("로그아웃 강제 요청 : ", userId)
     io.to(userId).emit("uBlocked")
+  })
+
+  socket.on("friendRequest", async (userId) => {
+    io.to(userId).emit("friendRequest")
   })
 });
 

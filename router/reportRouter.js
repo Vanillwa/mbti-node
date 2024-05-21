@@ -131,6 +131,8 @@ router.post("/api/chatroom/report", async (req, res) => {
   body.status = 'pending'
   body.targetId = req.user.userId == room.userId1 ? room.userId2 : room.userId1
 
+  console.log("userId : ", req.user.userId, "targetId : ", body.targetId)
+  await models.Friend.update({ status: 'blocked' }, { where: { [Op.or]: [{ userId: req.user.userId, targetId: body.targetId }, { userId: body.targetId, targetId: req.user.userId }] } })
   await models.ChatRoomReport.create(req.body)
   await models.ChatRoom.update({ status: 'reported' }, { where: { roomId } })
   return res.send({ message: 'success' })
@@ -140,7 +142,7 @@ router.post("/api/chatroom/report", async (req, res) => {
 router.get("/api/report/chatroom", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const page = parseInt(req.query.page)
-  console.log("page : ",page)
+  console.log("page : ", page)
   let startPage, lastPage, totalPage, totalCount, limit = 5
   totalCount = await models.ChatRoomReport.count({ where: { status: 'pending' } })
   const result = await models.sequelize.query(`select
