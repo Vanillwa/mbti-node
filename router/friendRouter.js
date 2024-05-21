@@ -145,7 +145,7 @@ router.get("/api/friend/friendList", async (req, res) => {
     lastPage,
     totalPage
   }
-
+  
   return res.send({ result, paging })
 })
 

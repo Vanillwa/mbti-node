@@ -22,10 +22,10 @@ router.get("/api/chat/request", async (req, res) => {
     userId2 = req.user.userId
   }
   const check = await models.ChatRoom.findOne({ where: { userId1, userId2 } })
-  if (check != null){
-    if(check.status === 'reported')  return res.send({ message: 'reported'})
+  if (check != null) {
+    if (check.status === 'reported') return res.send({ message: 'reported' })
     else return res.send({ message: 'duplicated', roomId: check.roomId })
-  } 
+  }
   const result = await models.ChatRoom.create({ title: `${req.user.nickname}님과 ${targetUser.nickname}님의 채팅방`, userId1, userId2 });
   return res.send({ message: "success", roomId: result.roomId });
 });
@@ -33,7 +33,10 @@ router.get("/api/chat/request", async (req, res) => {
 //채팅 리스트
 router.get("/api/chat", async (req, res) => {
   if (!req.user) return res.send({ message: "noAuth" });
-  const result = await models.sequelize.query(`SELECT
+  const page = parseInt(req.query.page) || 1
+  const size = parseInt(req.query.size) || 5
+  let startPage, lastPage, totalPage, totalCount, result
+  result = await models.sequelize.query(`SELECT
   cr.roomId,
   json_object('userId', u1.userId, 'nickname', u1.nickname, 'profileImage', u1.profileImage) as user1,
   json_object('userId', u2.userId, 'nickname', u2.nickname, 'profileImage', u2.profileImage) as user2,
@@ -74,8 +77,32 @@ router.get("/api/chat", async (req, res) => {
   on cr.userId2 = u2.userId
   where (userId1 = ${req.user.userId} or userId2 = ${req.user.userId})
     and cr.status = 'ok'
-    order by recentMessageDate desc`, { type: models.sequelize.QueryTypes.SELECT })
-  return res.send(result);
+  order by recentMessageDate desc`, { type: models.sequelize.QueryTypes.SELECT })
+  totalCount = await models.ChatRoom.count({ where: { [Op.or]: [{ userId1: req.user.userId }, { userId2: req.user.userId }], status: 'ok' } })
+
+  totalPage = math.ceil(totalCount / size)
+
+  if (totalPage <= 5) {
+    startPage = 1;
+    lastPage = totalPage;
+  } else {
+    if (page < 3) {
+      startPage = 1;
+      lastPage = 5;
+    } else if (page > totalPage - 2) {
+      startPage = totalPage - 4;
+      lastPage = totalPage;
+    } else {
+      startPage = page - 2;
+      lastPage = page + 2;
+    }
+  }
+  let paging = {
+    startPage,
+    lastPage,
+    totalPage
+  }
+  return res.send({ result, paging });
 });
 
 //채팅방 입장
@@ -87,9 +114,9 @@ router.get("/api/chat/:roomId", async (req, res) => {
 });
 
 // 채팅 알림
-router.get("/api/chat/alert", async(req,res)=>{
+router.get("/api/chat/alert", async (req, res) => {
   if (!req.user) return res.send({ message: "noAuth" });
-  const result = await models.Message.count({where : {targetId : req.user.userId, isRead : 0}})
+  const result = await models.Message.count({ where: { targetId: req.user.userId, isRead: 0 } })
   return res.send(result)
 })
 
