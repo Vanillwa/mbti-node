@@ -80,7 +80,7 @@ router.delete("/api/friend/delete", async (req, res) => {
 
 // 친구 리스트 조회
 router.get("/api/friend/friendList", async (req, res) => {
-  if (!req.user) return res.send({ message: 'noAuth' })
+  if (!req.user) return res.send({ message: 'noAuth' }) 
   const { keyword } = req.query
   let result
   if (keyword == null) {
