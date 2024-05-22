@@ -104,7 +104,7 @@ io.on("connection", (socket) => {
 
   // 로그인 하면 채팅 알림을 받을 수 있게 socket join
   socket.on("login", () => {
-    socket.to(socket.request.user.userId).emit('  ')
+    socket.to(socket.request.user.userId).emit('duplicatedLogin')
     socket.join(socket.request.user.userId)
   })
 
