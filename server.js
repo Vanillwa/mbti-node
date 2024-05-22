@@ -104,6 +104,7 @@ io.on("connection", (socket) => {
 
   // 로그인 하면 채팅 알림을 받을 수 있게 socket join
   socket.on("login", () => {
+    socket.to(socket.request.user.userId).emit('  ')
     socket.join(socket.request.user.userId)
   })
 
@@ -111,6 +112,7 @@ io.on("connection", (socket) => {
   socket.on("join", async (roomId) => {
     const userId = socket.request.user.userId
     socket.leave(userId)
+    console.log("userId : ", userId, "roomId : ", roomId)
     const roomInfo = await models.ChatRoom.findByPk(roomId)
     const targetId = (roomInfo.userId1 == userId) ? roomInfo.userId2 : roomInfo.userId1
     await models.Message.update({ isRead: 1 }, { where: { roomId, userId: targetId, isRead: 0 } }) // 사용자가 채팅방에 입장하면 상대방이 보냈던 채팅들 읽음 처리
@@ -163,6 +165,7 @@ io.on("connection", (socket) => {
   })
 
   socket.on("friendRequest", async (userId) => {
+    console.log("친구 요청 : ", userId)
     io.to(userId).emit("friendRequest")
   })
 });

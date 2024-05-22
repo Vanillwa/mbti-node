@@ -33,10 +33,8 @@ router.get("/api/chat/request", async (req, res) => {
 //채팅 리스트
 router.get("/api/chat", async (req, res) => {
   if (!req.user) return res.send({ message: "noAuth" });
-  const page = parseInt(req.query.page) || 1
-  const size = parseInt(req.query.size) || 5
-  let startPage, lastPage, totalPage, totalCount, result
-  result = await models.sequelize.query(`SELECT
+  
+  const result = await models.sequelize.query(`SELECT
   cr.roomId,
   json_object('userId', u1.userId, 'nickname', u1.nickname, 'profileImage', u1.profileImage) as user1,
   json_object('userId', u2.userId, 'nickname', u2.nickname, 'profileImage', u2.profileImage) as user2,
@@ -78,31 +76,8 @@ router.get("/api/chat", async (req, res) => {
   where (userId1 = ${req.user.userId} or userId2 = ${req.user.userId})
     and cr.status = 'ok'
   order by recentMessageDate desc`, { type: models.sequelize.QueryTypes.SELECT })
-  totalCount = await models.ChatRoom.count({ where: { [Op.or]: [{ userId1: req.user.userId }, { userId2: req.user.userId }], status: 'ok' } })
 
-  totalPage = math.ceil(totalCount / size)
-
-  if (totalPage <= 5) {
-    startPage = 1;
-    lastPage = totalPage;
-  } else {
-    if (page < 3) {
-      startPage = 1;
-      lastPage = 5;
-    } else if (page > totalPage - 2) {
-      startPage = totalPage - 4;
-      lastPage = totalPage;
-    } else {
-      startPage = page - 2;
-      lastPage = page + 2;
-    }
-  }
-  let paging = {
-    startPage,
-    lastPage,
-    totalPage
-  }
-  return res.send({ result, paging });
+  return res.send(result);
 });
 
 //채팅방 입장
