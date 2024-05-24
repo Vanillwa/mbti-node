@@ -88,8 +88,7 @@ router.put("/api/friend/block", async (req, res) => {
   const update1 = await models.Friend.update({ status: "blocked" }, { where: { userId: req.user.userId, targetId } })
   if (update1 < 1) await models.Friend.create({ status: 'blocked', userId: req.user.userId, targetId })
 
-  const update2 = await models.Friend.update({ status: "blocked" }, { where: { userId: targetId, targetId: req.user.userId } })
-  if (update2 < 1) await models.Friend.create({ status: 'blocked', userId: targetId, targetId: req.user.userId })
+  await models.Friend.destroy({ where: { userId: targetId, targetId: req.user.userId } })
 
   return res.send({ message: 'success' })
 })
@@ -189,7 +188,6 @@ router.delete("/api/friend/unblock", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const { targetId } = req.query
   await models.Friend.destroy({ where: { status: 'blocked', userId: req.user.userId, targetId } })
-  await models.Friend.destroy({ where: { status: 'blocked', userId: targetId, targetId: req.user.userId } })
   return res.send({ message: 'success' })
 })
 

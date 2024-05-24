@@ -108,27 +108,40 @@ io.on("connection", (socket) => {
     socket.join(socket.request.user.userId)
   })
 
-  // 채팅방 입장 socket join
-  socket.on("join", async (roomId) => {
+  // chat 페이지 입장
+  socket.on("joinList", () => {
     const userId = socket.request.user.userId
+    socket.join("c" + userId)
     socket.leave(userId)
+  })
+
+  // chat 페이지 퇴장
+  socket.on("leaveList", () => {
+    const userId = socket.request.user.userId
+    socket.leave("c" + userId)
+    socket.join(userId)
+  })
+
+  // 채팅방 입장 socket join
+  socket.on("joinRoom", async (roomId) => {
+    const userId = socket.request.user.userId
     console.log("userId : ", userId, "roomId : ", roomId)
     const roomInfo = await models.ChatRoom.findByPk(roomId)
     const targetId = (roomInfo.userId1 == userId) ? roomInfo.userId2 : roomInfo.userId1
     await models.Message.update({ isRead: 1 }, { where: { roomId, userId: targetId, isRead: 0 } }) // 사용자가 채팅방에 입장하면 상대방이 보냈던 채팅들 읽음 처리
-    socket.join("r" + roomId);
 
-    let userCount = io.sockets.adapter.rooms.get("r" + roomId).size // 상대방도 방에 들어와 있는 경우 상대방 화면도 업데이트 해줌
-    if (userCount === 2) {
+    let userCount = io.sockets.adapter.rooms.get("r" + roomId)?.size // 상대방도 방에 들어와 있는 경우 상대방 화면도 업데이트 해줌
+    if (userCount === 1) {
       const messages = await models.Message.findAll({ where: { roomId }, include: [{ model: models.User, as: 'sendUser' }, { model: models.User, as: 'receiveUser' }], order: [["createdAt", "ASC"]] })
-      io.to("r" + roomId).emit("userJoined", { messages, targetId })
+      io.to("r" + roomId).emit("userJoined", messages)
     }
+    socket.join("r" + roomId);
   });
 
   // 채팅방 퇴실 socket leave
-  socket.on("leave", (roomId) => {
+  socket.on("leaveRoom", (roomId) => {
     socket.leave("r" + roomId)
-    socket.join(socket.request.user.userId)
+    //socket.join(socket.request.user.userId)
   })
 
   // 로그아웃 socket leave
@@ -139,9 +152,12 @@ io.on("connection", (socket) => {
   // 메세지 입력
   socket.on("sendMessage", async (data) => {
     let user = socket.request.user;
+    const check = await models.ChatRoom.findByPk(data.roomId)
+
+    if (check.status != 'ok') return io.to("r" + data.roomId).emit("notAvailable", { targetId: user.userId })
+    
     let userCount = io.sockets.adapter.rooms.get("r" + data.roomId).size
     let result
-
     // 채팅방에 나 혼자면 채팅 안읽음 처리
     if (userCount == 1) result = await models.Message.create({ message: data.message, userId: user.userId, targetId: data.targetId, roomId: data.roomId, isRead: 0 });
     else result = await models.Message.create({ message: data.message, userId: user.userId, targetId: data.targetId, roomId: data.roomId, isRead: 1 });
@@ -155,7 +171,10 @@ io.on("connection", (socket) => {
       if (timeDiff <= 2500) return
     }
 
-    io.to(data.targetId).emit("notification", newResult)
+    if (userCount == 1) {
+      io.to("c" + data.targetId).emit("noti")
+      io.to(data.targetId).emit("notification", newResult)
+    }
     socket.request.lastMessageDate = new Date()
   });
 

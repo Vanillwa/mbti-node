@@ -142,7 +142,7 @@ router.post("/api/chatroom/report", async (req, res) => {
 router.get("/api/report/chatroom", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const page = parseInt(req.query.page)
-  console.log("page : ", page)
+  console.log("---------------------------------------------page : ", page)
   let startPage, lastPage, totalPage, totalCount, limit = 5
   totalCount = await models.ChatRoomReport.count({ where: { status: 'pending' } })
   const result = await models.sequelize.query(`select
@@ -193,7 +193,7 @@ where crr.status = 'pending'
     lastPage,
     totalPage
   }
-  console.log(result)
+  console.log("---------------------------result : ",result)
   return res.send({ list: result, paging })
 })
 
