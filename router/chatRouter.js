@@ -104,13 +104,24 @@ router.get("/api/chat/quit/:roomId", async (req, res) => {
   const room = await models.ChatRoom.findByPk(roomId)
 
   let result
-  if (room.userId1 === req.user.userId) {
-    if (room.user2Status == 'quit') result = await models.ChatRoom.update({ user1Status: "quit", status: 'deleted' }, { where: { roomId } })
-    else result = await models.ChatRoom.update({ user1Status: "quit" }, { where: { roomId } })
+  if (room.status === 'reported') {
+    if (room.userId1 === req.user.userId) {
+      if (room.user2Status == 'quit') result = await models.ChatRoom.update({ user1Status: "quit" }, { where: { roomId } })
+      else result = await models.ChatRoom.update({ user1Status: "quit" }, { where: { roomId } })
+    } else {
+      if (room.user1Status == 'quit') result = await models.ChatRoom.update({ user2Status: "quit" }, { where: { roomId } })
+      else result = await models.ChatRoom.update({ user2Status: "quit" }, { where: { roomId } })
+    }
   } else {
-    if (room.user2Status == 'quit') result = await models.ChatRoom.update({ user2Status: "quit", status: 'deleted' }, { where: { roomId } })
-    else result = await models.ChatRoom.update({ user2Status: "quit" }, { where: { roomId } })
+    if (room.userId1 === req.user.userId) {
+      if (room.user2Status == 'quit') result = await models.ChatRoom.update({ user1Status: "quit", status: 'deleted' }, { where: { roomId } })
+      else result = await models.ChatRoom.update({ user1Status: "quit" }, { where: { roomId } })
+    } else {
+      if (room.user1Status == 'quit') result = await models.ChatRoom.update({ user2Status: "quit", status: 'deleted' }, { where: { roomId } })
+      else result = await models.ChatRoom.update({ user2Status: "quit" }, { where: { roomId } })
+    }
   }
+
   return res.send({ message: 'success' })
 })
 

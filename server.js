@@ -124,6 +124,7 @@ io.on("connection", (socket) => {
 
   // 채팅방 입장 socket join
   socket.on("joinRoom", async (roomId) => {
+
     const userId = socket.request.user.userId
     console.log("userId : ", userId, "roomId : ", roomId)
     const roomInfo = await models.ChatRoom.findByPk(roomId)
@@ -136,6 +137,8 @@ io.on("connection", (socket) => {
       io.to("r" + roomId).emit("userJoined", messages)
     }
     socket.join("r" + roomId);
+
+
   });
 
   // 채팅방 퇴실 socket leave
@@ -181,15 +184,15 @@ io.on("connection", (socket) => {
     console.log("로그아웃 강제 요청 : ", userId)
     io.to(userId).emit("uBlocked")
   })
-  
+
   socket.on("friendRequest", async (userId) => {
     console.log("친구 요청 : ", userId)
     io.to(userId).emit("friendRequest")
   })
 
   // 방 나가기
-  socket.on("quitRoom", async(roomId)=>{
-    io.to("r"+roomId).emit("")
+  socket.on("quitRoom", async (roomId) => {
+    io.to("r" + roomId).emit("quitRoom")
   })
 });
 
