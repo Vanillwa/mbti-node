@@ -13,21 +13,18 @@ router.get("/api/chat/request", async (req, res) => {
     const friendCheck = await models.Friend.findOne({ where: { userId: req.user.userId, targetId, status: 'friend' } })
     if (friendCheck == null) return res.send({ message: 'notFriend' })
   }
-  let userId1, userId2, userCheck
+  let userId1, userId2
   if (req.user.userId < targetId) {
     userId1 = req.user.userId
     userId2 = targetId
-    userCheck = true
   } else {
     userId1 = targetId
     userId2 = req.user.userId
-    userCheck = false
   }
   const check = await models.ChatRoom.findOne({ where: { [Op.not]: { status: 'deleted' }, userId1, userId2 } })
   if (check != null) {
     if (check.status === 'reported') return res.send({ message: 'reported' })
-    if (userCheck) await models.ChatRoom.update({ user1Status: 'ok' }, { where: { roomId: check.roomId } })
-    else await models.ChatRoom.update({ user2Status: 'ok' }, { where: { roomId: check.roomId } })
+    await models.ChatRoom.update({ user1Status: 'ok', user2Status: 'ok'  }, { where: { roomId: check.roomId } })
     return res.send({ message: 'duplicated', roomId: check.roomId })
   }
   const result = await models.ChatRoom.create({ userId1, userId2 });

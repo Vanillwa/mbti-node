@@ -131,14 +131,10 @@ io.on("connection", (socket) => {
     const targetId = (roomInfo.userId1 == userId) ? roomInfo.userId2 : roomInfo.userId1
     await models.Message.update({ isRead: 1 }, { where: { roomId, userId: targetId, isRead: 0 } }) // 사용자가 채팅방에 입장하면 상대방이 보냈던 채팅들 읽음 처리
 
-    let userCount = io.sockets.adapter.rooms.get("r" + roomId)?.size // 상대방도 방에 들어와 있는 경우 상대방 화면도 업데이트 해줌
-    if (userCount === 1) {
-      const messages = await models.Message.findAll({ where: { roomId }, include: [{ model: models.User, as: 'sendUser' }, { model: models.User, as: 'receiveUser' }], order: [["createdAt", "ASC"]] })
-      io.to("r" + roomId).emit("userJoined", messages)
-    }
+    let userCount = io.sockets.adapter.rooms.get("r" + roomId)?.size
+    if (userCount === 1) io.to("r" + roomId).emit("userJoined", targetId) // 상대방도 방에 들어와 있는 경우 상대방 화면도 업데이트 해줌
+
     socket.join("r" + roomId);
-
-
   });
 
   // 채팅방 퇴실 socket leave
@@ -155,8 +151,9 @@ io.on("connection", (socket) => {
   socket.on("sendMessage", async (data) => {
     let user = socket.request.user;
     const check = await models.Friend.findOne({ where: { [Op.or]: [{ userId: user.userId, targetId: data.targetId, status: 'friend' }, { userId: data.targetId, targetId: user.userId, status: 'friend' }] } })
-
-    if (check === null) return io.to("r" + data.roomId).emit("notAvailable", { targetId: user.userId })
+    const room = await models.ChatRoom.findOne({ where: { roomId: data.roomId } })
+    console.log(check, room)
+    if (check === null || room.user1Status === 'quit' || room.user2Status === 'quit') return io.to("r" + data.roomId).emit("notAvailable", { targetId: user.userId })
 
     let userCount = io.sockets.adapter.rooms.get("r" + data.roomId).size
     let result
@@ -191,8 +188,11 @@ io.on("connection", (socket) => {
   })
 
   // 방 나가기
-  socket.on("quitRoom", async (roomId) => {
-    io.to("r" + roomId).emit("quitRoom")
+  socket.on("quitRoom", async (roomInfo) => {
+    socket.leave("r" + roomInfo.roomId)
+    console.log("roomInfo : ", roomInfo)
+    let targetId = socket.request.user.userId === roomInfo.userId1 ? roomInfo.userId2 : roomInfo.userId1
+    io.to("r" + roomInfo.roomId).emit("quitRoom", targetId)
   })
 });
 
