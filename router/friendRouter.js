@@ -7,6 +7,10 @@ const math = require('mathjs')
 router.get("/api/friend/request", async (req, res) => {
   const { targetId } = req.query;
   if (!req.user) return res.send({ message: 'noAuth' })
+  const targetUser = await models.User.findByPk(targetId)
+  if(targetUser == null) return res.send({ message: 'noExist' })
+  else if(targetUser.status === 'deleted') return res.send({ message: 'deleted' })
+  
   const check = await models.Friend.findOne({ where: { userId: req.user.userId, targetId } })
   if (check != null) {
     if (check.status === 'friend') // 이미 친구일 경우
@@ -21,7 +25,7 @@ router.get("/api/friend/request", async (req, res) => {
   return res.send({ message: 'success' })
 })
 
-// 친구 요청 리스트 조회
+// 친구 요청 리스트 조회  
 router.get("/api/friend/requestList", async (req, res) => {
   if (!req.user) return res.send({ message: 'noAuth' })
   const page = parseInt(req.query.page) || 1

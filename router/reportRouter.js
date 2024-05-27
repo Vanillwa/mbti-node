@@ -131,10 +131,15 @@ router.post("/api/chatroom/report", async (req, res) => {
   body.status = 'pending'
   body.targetId = req.user.userId == room.userId1 ? room.userId2 : room.userId1
 
+
   console.log("userId : ", req.user.userId, "targetId : ", body.targetId)
-  await models.Friend.update({ status: 'blocked' }, { where: { [Op.or]: [{ userId: req.user.userId, targetId: body.targetId }, { userId: body.targetId, targetId: req.user.userId }] } })
+  await models.Friend.update({ status: 'blocked' }, { where: { userId: req.user.userId, targetId: body.targetId } })
+  await models.Friend.destroy({ where: { userId: body.targetId, targetId: req.user.userId } })
   await models.ChatRoomReport.create(req.body)
-  await models.ChatRoom.update({ status: 'reported' }, { where: { roomId } })
+
+  let userCheck = (req.user.userId === room.userId1) ? true : false
+  if (userCheck) await models.ChatRoom.update({ status: 'reported', user1Status: 'quit' }, { where: { roomId } })
+  else await models.ChatRoom.update({ status: 'reported', user2Status: 'quit' }, { where: { roomId } })
   return res.send({ message: 'success' })
 })
 
@@ -142,7 +147,6 @@ router.post("/api/chatroom/report", async (req, res) => {
 router.get("/api/report/chatroom", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const page = parseInt(req.query.page)
-  console.log("---------------------------------------------page : ", page)
   let startPage, lastPage, totalPage, totalCount, limit = 5
   totalCount = await models.ChatRoomReport.count({ where: { status: 'pending' } })
   const result = await models.sequelize.query(`select
@@ -193,7 +197,7 @@ where crr.status = 'pending'
     lastPage,
     totalPage
   }
-  console.log("---------------------------result : ",result)
+
   return res.send({ list: result, paging })
 })
 
@@ -202,9 +206,8 @@ router.put("/api/report/chatroom/:reportId", async (req, res) => {
   if (!req.user || req.user.role != 'admin') return res.send({ message: 'noAuth' })
   const { reportId } = req.params
   const { targetId, roomId } = req.body
-  console.log(req.body)
   const check = await models.User.findByPk(targetId)
-  if (check.status !== 'blocked') await models.ChatRoom.update({ status: 'deleted' }, { where: { roomId } })
+  await models.ChatRoom.update({ status: 'ok' }, { where: { roomId } })
   const result = await models.ChatRoomReport.update({ status: 'done' }, { where: { reportId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })
@@ -280,7 +283,7 @@ router.put("/api/user/block", async (req, res) => {
   const { postId, commentId, roomId, userId, blockDate } = req.body
   if (postId != null) await models.Post.update({ status: 'blocked' }, { where: { postId } })
   if (commentId != null) await models.Comment.update({ status: 'blocked' }, { where: { commentId } })
-  if (roomId != null) await models.ChatRoom.update({ status: 'blocked' }, { where: { roomId } })
+  if (roomId != null) await models.ChatRoom.update({ status: 'ok' }, { where: { roomId } })
   const result = await models.User.update({ status: 'blocked', blockDate }, { where: { userId } })
   if (result > 0) return res.send({ message: 'success' })
   return res.send({ message: 'fail' })

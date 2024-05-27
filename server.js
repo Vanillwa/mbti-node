@@ -17,7 +17,7 @@ app.use(
 );
 const path = require("path");
 const models = require("./models");
-const { Sequelize } = require("sequelize");
+const { Sequelize, Op } = require("sequelize");
 const session = require("express-session");
 const MySQLStore = require("express-mysql-session")(session);
 const passport = require("passport");
@@ -141,7 +141,6 @@ io.on("connection", (socket) => {
   // 채팅방 퇴실 socket leave
   socket.on("leaveRoom", (roomId) => {
     socket.leave("r" + roomId)
-    //socket.join(socket.request.user.userId)
   })
 
   // 로그아웃 socket leave
@@ -152,10 +151,10 @@ io.on("connection", (socket) => {
   // 메세지 입력
   socket.on("sendMessage", async (data) => {
     let user = socket.request.user;
-    const check = await models.ChatRoom.findByPk(data.roomId)
+    const check = await models.Friend.findOne({ where: { [Op.or]: [{ userId: user.userId, targetId: data.targetId, status: 'friend' }, { userId: data.targetId, targetId: user.userId, status: 'friend' }] } })
 
-    if (check.status != 'ok') return io.to("r" + data.roomId).emit("notAvailable", { targetId: user.userId })
-    
+    if (check === null) return io.to("r" + data.roomId).emit("notAvailable", { targetId: user.userId })
+
     let userCount = io.sockets.adapter.rooms.get("r" + data.roomId).size
     let result
     // 채팅방에 나 혼자면 채팅 안읽음 처리
@@ -182,10 +181,15 @@ io.on("connection", (socket) => {
     console.log("로그아웃 강제 요청 : ", userId)
     io.to(userId).emit("uBlocked")
   })
-
+  
   socket.on("friendRequest", async (userId) => {
     console.log("친구 요청 : ", userId)
     io.to(userId).emit("friendRequest")
+  })
+
+  // 방 나가기
+  socket.on("quitRoom", async(roomId)=>{
+    io.to("r"+roomId).emit("")
   })
 });
 

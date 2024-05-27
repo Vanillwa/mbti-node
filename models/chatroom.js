@@ -33,8 +33,9 @@ module.exports = (sequelize, DataTypes) => {
       primaryKey: true,
       type: DataTypes.INTEGER
     },
-    title: DataTypes.STRING,
     status: DataTypes.STRING,
+    user1Status: DataTypes.STRING,
+    user2Status: DataTypes.STRING,
   }, {
     sequelize,
     modelName: 'ChatRoom',

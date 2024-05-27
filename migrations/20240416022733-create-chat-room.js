@@ -9,11 +9,17 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      title: {
+      status: {
         type: Sequelize.STRING,
         allowNull: false,
+        defaultValue : "ok"
       },
-      status: {
+      user1Status: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        defaultValue : "ok"
+      },
+      user2Status: {
         type: Sequelize.STRING,
         allowNull: false,
         defaultValue : "ok"
