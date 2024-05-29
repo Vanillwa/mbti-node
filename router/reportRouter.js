@@ -123,7 +123,7 @@ router.post("/api/chatroom/report", async (req, res) => {
   const room = await models.ChatRoom.findByPk(roomId)
   if (room == null) return res.send({ message: 'noExist' })
 
-  const check = await models.ChatRoomReport.findOne({ where: { roomId, userId: req.user.userId } })
+  const check = await models.ChatRoomReport.findOne({ where: { roomId, userId: req.user.userId, status: 'pending' } })
   if (check != null) return res.send({ message: 'duplicated' })
 
   let body = req.body
@@ -131,10 +131,8 @@ router.post("/api/chatroom/report", async (req, res) => {
   body.status = 'pending'
   body.targetId = req.user.userId == room.userId1 ? room.userId2 : room.userId1
 
-
-  console.log("userId : ", req.user.userId, "targetId : ", body.targetId)
-  await models.Friend.update({ status: 'blocked' }, { where: { userId: req.user.userId, targetId: body.targetId } })
-  await models.Friend.destroy({ where: { userId: body.targetId, targetId: req.user.userId } })
+  //await models.Friend.update({ status: 'blocked' }, { where: { userId: req.user.userId, targetId: body.targetId } })
+  //await models.Friend.destroy({ where: { userId: body.targetId, targetId: req.user.userId } })
   await models.ChatRoomReport.create(req.body)
 
   let userCheck = (req.user.userId === room.userId1) ? true : false
@@ -154,8 +152,8 @@ router.get("/api/report/chatroom", async (req, res) => {
 	crr.type,
 	crr.status,
 	crr.roomId,
-	json_object('userId', u.userId, 'nickname', u.nickname) as reportUser,
-	json_object('userId', t.userId, 'nickname', t.nickname) as targetUser,
+	json_object('userId', u.userId, 'nickname', u.nickname, 'status', u.status) as reportUser,
+	json_object('userId', t.userId, 'nickname', t.nickname, 'status', t.status) as targetUser,
 	json_arrayagg(
 		json_object('messageId', m.messageId,'message', m.message, 'userId', m.userId, 'nickname', u1.nickname, 'profileImage', u1.profileImage)
 	) as chat

@@ -6,6 +6,7 @@ const path = require("path");
 
 const mailer = require('nodemailer');
 const multer = require('multer');
+const { Op } = require('sequelize');
 const smtpTransport = mailer.createTransport({
   pool: true,
   maxConnections: 1,
@@ -216,6 +217,9 @@ router.delete("/api/user", async (req, res) => {
   if (result > 0) {
     await models.Post.update({ status: 'deleted' }, { where: { writerId: req.user.userId } })
     await models.Comment.update({ status: 'deleted' }, { where: { userId: req.user.userId } })
+    await models.ChatRoom.update({ user1Status: 'quit' }, { where: { userId1: req.user.userId } })
+    await models.ChatRoom.update({ user2Status: 'quit' }, { where: { userId2: req.user.userId } })
+    await models.Friend.destroy({ where: { [Op.or]: [{ userId: req.user.userId }, { targetId: req.user.userId }] } })
     req.logout(() => {
       req.session.destroy();
       return res.send({ message: "success" });

@@ -7,10 +7,11 @@ const math = require('mathjs')
 router.get("/api/friend/request", async (req, res) => {
   const { targetId } = req.query;
   if (!req.user) return res.send({ message: 'noAuth' })
+  if (req.user.userId === parseInt(targetId)) return res.send({ message: 'notAvailable' })
   const targetUser = await models.User.findByPk(targetId)
-  if(targetUser == null) return res.send({ message: 'noExist' })
-  else if(targetUser.status === 'deleted') return res.send({ message: 'deleted' })
-  
+  if (targetUser == null) return res.send({ message: 'noExist' })
+  else if (targetUser.status === 'deleted') return res.send({ message: 'deleted' })
+
   const check = await models.Friend.findOne({ where: { userId: req.user.userId, targetId } })
   if (check != null) {
     if (check.status === 'friend') // 이미 친구일 경우
@@ -89,11 +90,17 @@ router.delete("/api/friend/reject", async (req, res) => {
 router.put("/api/friend/block", async (req, res) => {
   const { targetId } = req.query
   if (!req.user) return res.send({ message: 'noAuth' })
-  const update1 = await models.Friend.update({ status: "blocked" }, { where: { userId: req.user.userId, targetId } })
-  if (update1 < 1) await models.Friend.create({ status: 'blocked', userId: req.user.userId, targetId })
-
-  await models.Friend.destroy({ where: { userId: targetId, targetId: req.user.userId } })
-
+  const check = await models.Friend.findOne({ where: { userId: req.user.userId, targetId } })
+  if (check != null) {
+    if (check.status === 'friend') {
+      await models.Friend.update({ status: "blocked" }, { where: { userId: req.user.userId, targetId } })
+      await models.Friend.destroy({ where: { userId: targetId, targetId: req.user.userId } })
+    } else if (check.status === 'blocked') {
+      return res.send({ message: 'duplicated' })
+    }
+  } else {
+    await models.Friend.create({ status: 'blocked', userId: req.user.userId, targetId })
+  }
   return res.send({ message: 'success' })
 })
 
@@ -102,9 +109,16 @@ router.delete("/api/friend/delete", async (req, res) => {
   const { friendId } = req.query
   if (!req.user) return res.send({ message: 'noAuth' })
   const friend = await models.Friend.findByPk(friendId)
+  if (friend == null) return res.send({ message: 'alreadyDeleted' })
   const result = await models.Friend.destroy({ where: { friendId } })
   if (result > 0) {
     await models.Friend.destroy({ where: { userId: friend.targetId, targetId: friend.userId } })
+    const room = await models.ChatRoom.findOne({ where: { [Op.or]: [{ userId1: friend.userId, userId2: friend.targetId }, { userId1: friend.targetId, userId2: friend.userId }] } })
+    if (room.userId1 === req.user.userId) {
+      await models.ChatRoom.update({ user1Status: 'quit' }, { where: { [Op.or]: [{ userId1: friend.userId, userId2: friend.targetId }, { userId1: friend.targetId, userId2: friend.userId }] } })
+    } else {
+      await models.ChatRoom.update({ user2Status: 'quit' }, { where: { [Op.or]: [{ userId1: friend.userId, userId2: friend.targetId }, { userId1: friend.targetId, userId2: friend.userId }] } })
+    }
     return res.send({ message: 'success' })
   }
   return res.send({ message: 'fail' })
@@ -148,7 +162,7 @@ router.get("/api/friend/friendList", async (req, res) => {
     lastPage,
     totalPage
   }
-  
+
   return res.send({ result, paging })
 })
 

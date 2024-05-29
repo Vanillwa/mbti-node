@@ -21,7 +21,7 @@ router.get("/api/post/list", async (req, res) => {
   const { mbti, sort, order } = req.query
   const page = parseInt(req.query.page)
   const size = parseInt(req.query.size)
-
+  console.log(req.query)
   let startPage, lastPage, totalPage, totalCount, result
   if (mbti == 'null') {
     totalCount = await models.Post.count({ where: { status: 'ok' } })

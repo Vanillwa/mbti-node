@@ -7,19 +7,19 @@ router.get("/api/search", async (req, res) => {
   const page = parseInt(req.query.page) || 1
   const size = parseInt(req.query.size) || 5
   const { keyword } = req.query
-  
+
   let startPage, lastPage, totalPage, totalCount
 
-  const userList = await models.User.findAll({ where: { nickname: { [Op.like]: `%${keyword}%` } } })
+  const userList = await models.User.findAll({ where: { nickname: { [Op.like]: `%${keyword}%` }, status: "ok" } })
   const postList = await models.Post.findAll({
-    where: { title: { [Op.like]: `%${keyword}%` } },
+    where: { title: { [Op.like]: `%${keyword}%` }, status: "ok" },
     offset: (page - 1) * size,
     limit: size,
     include: [{ model: models.User }]
   });
 
   totalCount = await models.Post.count({
-    where: { title: { [Op.like]: `%${keyword}%` } },
+    where: { title: { [Op.like]: `%${keyword}%` }, status: "ok" },
   })
 
   totalPage = math.ceil(totalCount / size)
