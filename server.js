@@ -104,8 +104,12 @@ io.on("connection", (socket) => {
 
   // 로그인 하면 채팅 알림을 받을 수 있게 socket join
   socket.on("login", () => {
-    socket.to(socket.request.user.userId).emit('duplicatedLogin')
     socket.join(socket.request.user.userId)
+    let userCount =  io.sockets.adapter.rooms.get(socket.request.user.userId)?.size
+    console.log("userCount : ", userCount)
+    if (userCount >= 2) {
+      socket.to(socket.request.user.userId).emit('duplicatedLogin')
+    }
   })
 
   // chat 페이지 입장
