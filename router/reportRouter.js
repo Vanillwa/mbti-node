@@ -126,13 +126,14 @@ router.post("/api/chatroom/report", async (req, res) => {
   const check = await models.ChatRoomReport.findOne({ where: { roomId, userId: req.user.userId, status: 'pending' } })
   if (check != null) return res.send({ message: 'duplicated' })
 
+  const chatCheck = await models.Message.findAll({ where: { roomId } })
+  if (chatCheck.length === 0) return res.send({ message: 'noChat' })
+
   let body = req.body
   body.userId = req.user.userId
   body.status = 'pending'
   body.targetId = req.user.userId == room.userId1 ? room.userId2 : room.userId1
 
-  //await models.Friend.update({ status: 'blocked' }, { where: { userId: req.user.userId, targetId: body.targetId } })
-  //await models.Friend.destroy({ where: { userId: body.targetId, targetId: req.user.userId } })
   await models.ChatRoomReport.create(req.body)
 
   let userCheck = (req.user.userId === room.userId1) ? true : false
@@ -195,7 +196,7 @@ where crr.status = 'pending'
     lastPage,
     totalPage
   }
-
+  console.log(result)
   return res.send({ list: result, paging })
 })
 

@@ -104,6 +104,7 @@ io.on("connection", (socket) => {
 
   // 로그인 하면 채팅 알림을 받을 수 있게 socket join
   socket.on("login", () => {
+    console.log("유저 로그인 : ", socket.request.user.userId)
     socket.join(socket.request.user.userId)
     let userCount =  io.sockets.adapter.rooms.get(socket.request.user.userId)?.size
     console.log("userCount : ", userCount)

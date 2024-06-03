@@ -91,20 +91,14 @@ router.put("/api/friend/block", async (req, res) => {
   const { targetId } = req.query
   console.log("targetId : ", targetId)
   if (!req.user) return res.send({ message: 'noAuth' })
-  const check = await models.Friend.findOne({ where: { userId: req.user.userId, targetId } })
-  console.log(check)
+  const check = await models.Friend.findOne({ where: { userId: req.user.userId, targetId, status: 'blocked' } })
   if (check != null) {
-    if (check.status === 'friend' || check.status === 'pending') {
-      await models.Friend.update({ status: "blocked" }, { where: { userId: req.user.userId, targetId } })
-      await models.Friend.destroy({ where: { userId: targetId, targetId: req.user.userId } })
-      return res.send({ message: 'success' })
-    } else if (check.status === 'blocked') {
-      return res.send({ message: 'duplicated' })
-    }
+    return res.send({ message: 'duplicated' })
   } else {
+    await models.Friend.destroy({ where: { [Op.or]: [{ userId: targetId, targetId: req.user.userId }, { userId: req.user.userId, targetId }] } })
     await models.Friend.create({ status: 'blocked', userId: req.user.userId, targetId })
-    return res.send({ message: 'success' })
   }
+  return res.send({ message: 'success' })
 })
 
 // 친구 삭제
